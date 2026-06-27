@@ -13,13 +13,15 @@ from pathlib import Path
 # Ensure the src/ directory is on the path for direct script invocation
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from typing import Any
+
 from vega.config import settings
-from vega.database import async_session, Base, engine, init_db
+from vega.database import Base, async_session, engine, init_db
 from vega.models.reward import Reward
 from vega.models.tree import Tree
 
 # ── Karlsruhe trees ────────────────────────────────────────────
-DEMO_TREES: list[dict] = [
+DEMO_TREES: list[dict[str, Any]] = [
     {
         "name": "Marktplatz-Linde",
         "species": "Tilia cordata",
@@ -73,7 +75,7 @@ DEMO_TREES: list[dict] = [
 ]
 
 # ── Rewards catalogue ──────────────────────────────────────────
-DEMO_REWARDS: list[dict] = [
+DEMO_REWARDS: list[dict[str, Any]] = [
     {
         "name": "Free Bus Day Pass",
         "description": "One day of free public transport in Karlsruhe (KVV).",
@@ -132,12 +134,12 @@ async def seed(reset: bool = False) -> None:
 
     async with async_session() as session:
         # ── Insert trees ──
-        existing = (await session.execute(
+        tree_count: int | None = (await session.execute(
             __import__("sqlalchemy").select(__import__("sqlalchemy").func.count(Tree.id))
         )).scalar()
 
-        if existing > 0:
-            print(f"  Skipping trees: {existing} already exist.")
+        if tree_count and tree_count > 0:
+            print(f"  Skipping trees: {tree_count} already exist.")
         else:
             trees = [Tree(**t) for t in DEMO_TREES]
             session.add_all(trees)
@@ -145,14 +147,14 @@ async def seed(reset: bool = False) -> None:
             print(f"  Seeded {len(trees)} demo trees.")
 
         # ── Insert rewards ──
-        existing = (await session.execute(
+        reward_count: int | None = (await session.execute(
             __import__("sqlalchemy").select(
                 __import__("sqlalchemy").func.count(Reward.id)
             )
         )).scalar()
 
-        if existing > 0:
-            print(f"  Skipping rewards: {existing} already exist.")
+        if reward_count and reward_count > 0:
+            print(f"  Skipping rewards: {reward_count} already exist.")
         else:
             rewards = [Reward(**r) for r in DEMO_REWARDS]
             session.add_all(rewards)

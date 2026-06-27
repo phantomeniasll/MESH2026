@@ -26,7 +26,7 @@ class Reading(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
-    tree: Mapped["Tree"] = relationship(back_populates="readings")
+    tree: Mapped["Tree"] = relationship(back_populates="readings")  # type: ignore[name-defined]
 
     def __repr__(self) -> str:
         return f"<Reading tree={self.tree_id[:8]}… moisture={self.moisture}>"

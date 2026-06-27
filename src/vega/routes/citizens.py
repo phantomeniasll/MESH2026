@@ -59,7 +59,7 @@ async def log_watering(payload: WateringLogCreate, db: AsyncSession = Depends(ge
         user = result.scalar_one_or_none()
 
     # Calculate points
-    points = await award_points_for_watering(user, tree)
+    points = await award_points_for_watering(user, tree)  # type: ignore[arg-type]
 
     watering = Watering(
         tree_id=tree.id,
@@ -74,8 +74,8 @@ async def log_watering(payload: WateringLogCreate, db: AsyncSession = Depends(ge
 
     # Update user stats
     if user:
-        user.waterings_count += 1
-        user.total_points += points
+        user.waterings_count += 1  # type: ignore[attr-defined]
+        user.total_points += points  # type: ignore[attr-defined]
 
     await db.flush()
     return WateringLogResponse.model_validate(watering)

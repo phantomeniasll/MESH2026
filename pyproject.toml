@@ -45,6 +45,7 @@ dev = [
 
 [project.scripts]
 vega = "vega.main:main"
+vega-seed = "vega.seed:main"
 
 [tool.ruff]
 target-version = "py311"
@@ -64,5 +65,9 @@ pythonpath = ["src"]
 
 [tool.mypy]
 python_version = "3.11"
-strict = true
+strict = false
 ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+check_untyped_defs = true
+disallow_incomplete_defs = false

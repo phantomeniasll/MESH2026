@@ -19,12 +19,28 @@ router = APIRouter(prefix="/api/sensors", tags=["sensors"])
 @router.post("/ingest", response_model=SensorReadingResponse, status_code=201)
 async def ingest_reading(payload: SensorReadingCreate, db: AsyncSession = Depends(get_db)):
     """Ingest a sensor reading from a LoRaWAN device uplink."""
+
+    # ── Print incoming reading for visibility ──
+    print(f"\n{'='*60}")
+    print(f"📡 INGEST  device={payload.device_eui}")
+    print(f"   moisture={payload.moisture}%  temp={payload.temperature}°C  "
+          f"humidity={payload.humidity}%")
+    print(f"   footfall={payload.footfall_count}  battery={payload.battery_voltage}V  "
+          f"rssi={payload.rssi}dB")
+    print(f"   raw: {payload.model_dump_json()}")
+    print(f"{'='*60}\n")
+
     result = await db.execute(
         select(Tree).where(Tree.device_eui == payload.device_eui)
     )
     tree = result.scalar_one_or_none()
     if not tree:
-        raise HTTPException(status_code=404, detail=f"No tree registered for device EUI: {payload.device_eui}")
+        print(f"⚠️  No tree registered for EUI '{payload.device_eui}' — "
+              f"reading discarded.")
+        raise HTTPException(
+            status_code=404,
+            detail=f"No tree registered for device EUI: {payload.device_eui}",
+        )
 
     reading = Reading(
         tree_id=tree.id,
@@ -50,6 +66,9 @@ async def ingest_reading(payload: SensorReadingCreate, db: AsyncSession = Depend
         else:
             tree.status = "healthy"
 
+    print(f"✅ Stored as reading {reading.id[:8]}…  tree={tree.name}  "
+          f"status={tree.status}")
+
     return SensorReadingResponse.model_validate(reading)
 
 
@@ -74,7 +93,9 @@ async def tree_health(tree_id: str, db: AsyncSession = Depends(get_db)):
         tree_name=tree.name,
         current_moisture=latest_reading.moisture if latest_reading else None,
         moisture_trend="stable",
-        footfall_24h=latest_reading.footfall_count if latest_reading else 0,
+        footfall_24h=latest_reading.footfall_count
+        if latest_reading and latest_reading.footfall_count is not None
+        else 0,
         last_reading_at=latest_reading.recorded_at if latest_reading else None,
         battery_voltage=latest_reading.battery_voltage if latest_reading else None,
         status=tree.status,

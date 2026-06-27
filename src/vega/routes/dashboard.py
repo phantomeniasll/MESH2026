@@ -30,7 +30,7 @@ async def city_overview(db: AsyncSession = Depends(get_db)):
         "critical": critical,
         "total_waterings": total_waterings,
         "total_citizens": total_citizens,
-        "health_pct": round(healthy / total_trees * 100, 1) if total_trees else 0,
+        "health_pct": round((healthy or 0) / total_trees * 100, 1) if total_trees else 0,
     }
 
 

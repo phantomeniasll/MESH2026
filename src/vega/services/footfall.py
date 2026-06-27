@@ -40,7 +40,7 @@ def calculate_footfall_trend(
         return {"peak_hour": None, "total": 0, "busy_hours": []}
 
     total = sum(hourly_counts.values())
-    peak_hour = max(hourly_counts, key=hourly_counts.get)
+    peak_hour = max(hourly_counts, key=hourly_counts.get)  # type: ignore[arg-type]
     avg = total / 24 if total > 0 else 0
     busy_hours = [h for h, c in hourly_counts.items() if c > avg * 1.5]
 

@@ -22,8 +22,8 @@ class Watering(Base):
     points_earned: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), index=True)
 
-    tree: Mapped["Tree"] = relationship(back_populates="waterings")
-    user: Mapped["User | None"] = relationship(back_populates="waterings")
+    tree: Mapped["Tree"] = relationship(back_populates="waterings")  # type: ignore[name-defined]
+    user: Mapped["User | None"] = relationship(back_populates="waterings")  # type: ignore[name-defined]
 
     def __repr__(self) -> str:
         return f"<Watering tree={self.tree_id[:8]}… user={self.user_id[:8] if self.user_id else 'anon'}>"

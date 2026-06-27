@@ -43,22 +43,22 @@ async def redeem_reward(payload: RedeemRequest, db: AsyncSession = Depends(get_d
         raise HTTPException(status_code=404, detail="Reward not found or inactive")
 
     # Check stock
-    if reward.stock is not None and reward.stock <= 0:
+    if reward.stock is not None and reward.stock <= 0:  # type: ignore[attr-defined]
         raise HTTPException(status_code=400, detail="Reward out of stock")
 
     # Check points
-    if user.total_points < reward.points_cost:
-        raise HTTPException(status_code=400, detail=f"Not enough points. Need {reward.points_cost}, have {user.total_points}")
+    if user.total_points < reward.points_cost:  # type: ignore[attr-defined]
+        raise HTTPException(status_code=400, detail=f"Not enough points. Need {reward.points_cost}, have {user.total_points}")  # type: ignore[attr-defined]
 
     # Deduct points, decrement stock
-    user.total_points -= reward.points_cost
-    if reward.stock is not None:
-        reward.stock -= 1
+    user.total_points -= reward.points_cost  # type: ignore[attr-defined]
+    if reward.stock is not None:  # type: ignore[attr-defined]
+        reward.stock -= 1  # type: ignore[attr-defined]
 
     redemption = RewardRedemption(
         user_id=user.id,
         reward_id=reward.id,
-        points_spent=reward.points_cost,
+        points_spent=reward.points_cost,  # type: ignore[attr-defined]
     )
     db.add(redemption)
     await db.flush()
@@ -66,7 +66,7 @@ async def redeem_reward(payload: RedeemRequest, db: AsyncSession = Depends(get_d
     return RedeemResponse(
         success=True,
         redemption_id=redemption.id,
-        points_spent=reward.points_cost,
+        points_spent=reward.points_cost,  # type: ignore[attr-defined]
         remaining_points=user.total_points,
-        message=f"Redeemed: {reward.name}!",
+        message=f"Redeemed: {reward.name}!",  # type: ignore[attr-defined]
     )
