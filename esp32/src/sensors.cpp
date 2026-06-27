@@ -6,14 +6,29 @@
 #include <DHT.h>
 #include <soc/sens_reg.h>       // REG_SET_FIELD, SENS_SAR1_SAMPLE_CYCLE
 #include <driver/adc.h>         // adc1_config_channel_atten
+#include <esp_timer.h>          // esp_timer_get_time() — ISR-safe
 
 // ── Globals ─────────────────────────────────────────────────────
 static DHT dht(DHT_PIN, DHT_TYPE);
-static volatile int fs_count = 0;   // footstep counter (ISR)
+static volatile int fs_count = 0;       // footstep counter (ISR)
+static uint64_t      last_vibe_us = 0;  // debounce timer (ISR-safe)
 
 // ── Interrupt handler ──────────────────────────────────────────
+// The vibration sensor is inherently jittery — a single footstep on
+// hard ground can produce a burst of falling edges as the vibration
+// rings out through the soil.  We ignore any trigger that arrives
+// within VIBE_DEBOUNCE_MS of the last counted step.
+//
+// esp_timer_get_time() is used instead of millis() because it is
+// safe to call from an ISR context (it reads the CPU cycle counter,
+// not the interrupt-driven systick).
 static void IRAM_ATTR vibe_isr() {
-    fs_count++;
+    uint64_t now = esp_timer_get_time();
+    uint64_t elapsed_ms = (now - last_vibe_us) / 1000ULL;
+    if (elapsed_ms >= VIBE_DEBOUNCE_MS) {
+        fs_count++;
+        last_vibe_us = now;
+    }
 }
 
 // ── Init ────────────────────────────────────────────────────────

@@ -23,6 +23,12 @@
 #define MIC_PIN       32   // Analog electret microphone (ADC1_CH4)
 #define MIC_SAMPLE_MS 500  // Averaging window for sound level
 
+// ── Footstep debounce ──────────────────────────────────────────
+// Vibration sensors are jittery — a single footstep can produce
+// multiple falling edges as the ground vibration rings out.
+// We ignore triggers within DEBOUNCE_MS of the last accepted one.
+#define VIBE_DEBOUNCE_MS 250  // minimum gap between counted steps
+
 // ── Sensor presence flags (set at compile time per node) ────────
 struct SensorConfig {
     bool has_dht;         // temperature + humidity
