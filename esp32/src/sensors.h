@@ -27,7 +27,7 @@
 // Vibration sensors are jittery — a single footstep can produce
 // multiple falling edges as the ground vibration rings out.
 // We ignore triggers within DEBOUNCE_MS of the last accepted one.
-#define VIBE_DEBOUNCE_MS 250  // minimum gap between counted steps
+#define VIBE_DEBOUNCE_MS 30   // minimum gap between counted steps
 
 // ── Sensor presence flags (set at compile time per node) ────────
 struct SensorConfig {
