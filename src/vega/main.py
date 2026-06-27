@@ -1,12 +1,13 @@
 """VEGA FastAPI application entry point."""
 
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .database import init_db
-from .routes import sensors, trees, citizens, dashboard, gamification, rewards
+from .routes import citizens, dashboard, gamification, rewards, sensors, trees
 
 
 @asynccontextmanager

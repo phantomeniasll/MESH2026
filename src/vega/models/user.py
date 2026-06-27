@@ -1,10 +1,11 @@
 """Citizen user model — gamification participant."""
 
 import uuid
-from datetime import datetime
-from sqlalchemy import Integer, String, DateTime, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+
+from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
 
@@ -28,7 +29,7 @@ class User(Base):
     level: Mapped[int] = mapped_column(Integer, default=1)
     badges: Mapped[str] = mapped_column(String(512), default="")  # comma-separated badge IDs
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     last_activity_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     waterings: Mapped[list["Watering"]] = relationship(back_populates="user", lazy="selectin")

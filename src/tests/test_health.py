@@ -1,7 +1,7 @@
 """Basic smoke tests — health check and app initialization."""
 
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 from vega.main import app
 

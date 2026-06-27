@@ -1,13 +1,13 @@
 """Tree CRUD and discovery routes."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
-from ..models.tree import Tree
 from ..models.reading import Reading
-from ..schemas.tree import TreeCreate, TreeUpdate, TreeResponse, TreeSummary
+from ..models.tree import Tree
+from ..schemas.tree import TreeCreate, TreeResponse, TreeSummary, TreeUpdate
 
 router = APIRouter(prefix="/api/trees", tags=["trees"])
 
@@ -66,6 +66,16 @@ async def create_tree(payload: TreeCreate, db: AsyncSession = Depends(get_db)):
     tree = Tree(**payload.model_dump())
     db.add(tree)
     await db.flush()
+    return TreeResponse.model_validate(tree)
+
+
+@router.get("/by-nfc/{nfc_tag_id}", response_model=TreeResponse)
+async def get_tree_by_nfc(nfc_tag_id: str, db: AsyncSession = Depends(get_db)):
+    """Look up a tree by its NFC tag ID — used when a citizen taps."""
+    result = await db.execute(select(Tree).where(Tree.nfc_tag_id == nfc_tag_id))
+    tree = result.scalar_one_or_none()
+    if not tree:
+        raise HTTPException(status_code=404, detail=f"No tree found for NFC tag: {nfc_tag_id}")
     return TreeResponse.model_validate(tree)
 
 

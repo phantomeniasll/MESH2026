@@ -1,13 +1,17 @@
 """LoRaWAN sensor data ingestion routes."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
-from ..models.tree import Tree
 from ..models.reading import Reading
-from ..schemas.sensor import SensorReadingCreate, SensorReadingResponse, TreeHealthSummary
+from ..models.tree import Tree
+from ..schemas.sensor import (
+    SensorReadingCreate,
+    SensorReadingResponse,
+    TreeHealthSummary,
+)
 
 router = APIRouter(prefix="/api/sensors", tags=["sensors"])
 

@@ -1,12 +1,12 @@
 """Gamification routes — badges, streaks, points."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from ..models.user import User
-from ..schemas.gamification import PointsSummary, StreakStatus, BadgeInfo
+from ..schemas.gamification import BadgeInfo, PointsSummary, StreakStatus
 
 router = APIRouter(prefix="/api/gamification", tags=["gamification"])
 

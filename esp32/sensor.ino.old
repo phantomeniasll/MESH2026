@@ -1,0 +1,232 @@
+// =============================================================================
+// Wurzelwerk — ESP32 Tree Sensor Firmware
+// =============================================================================
+// HackXplore 2026 — Team Be Tree
+//
+// DECISIONS MADE (change if wrong):
+//   - MPU6050 uses built-in DHPF for footstep detection instead of software FFT.
+//     Reason: FFT is heavy on ESP32, DHPF is hardware-level bandpass. Good enough
+//     for distinguishing footsteps (10-60 Hz) from vehicles (<10 Hz) and noise.
+//     If this proves unreliable on-site, fallback: raw Z-axis threshold.
+//
+//   - DHT22 for temperature + humidity on GPIO 33. One-wire protocol.
+//     Alternative considered: BME280 (I2C, also has pressure). Rejected because
+//     Mükra is more likely to stock DHT22. If you find a BME280, swap — same I2C
+//     bus as MPU6050, adds barometric pressure.
+//
+//   - Moisture sensor on GPIO 34 (ADC1). Capacitive sensor — VEGA provides this.
+//     0-4095 raw → mapped to 0-100% assuming inverse relationship.
+//     Calibration: dry=high resistance=high ADC, wet=low resistance=low ADC.
+//     If VEGA's sensor reads differently, flip the mapping.
+//
+//   - Sampling rate: 100 Hz for accelerometer, 15s send interval.
+//     100 Hz is enough for footstep detection (Nyquist for 50 Hz max signal).
+//     15s send interval balances real-time feel with WiFi power.
+//
+//   - WiFi + MQTT credentials: hardcoded for hackathon. Not production.
+//     Change SSID/PASS on-site to match venue network.
+//
+
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+
+// ── PIN ASSIGNMENTS ────────────────────────────────────────────
+#define MOISTURE_PIN  34   // ADC1 — capacitive soil moisture
+#define DHT_PIN       33   // DHT22 one-wire
+#define DHT_TYPE      DHT22
+#define I2C_SDA       21   // shared by MPU6050 (+ optional BME280)
+#define I2C_SCL       22
+
+// ── NETWORK (change on-site) ────────────────────────────────────
+#define WIFI_SSID     "HackXplore"
+#define WIFI_PASS     "password"
+
+// MQTT: point at your laptop running the FastAPI backend
+// Your laptop runs mosquitto + Python MQTT subscriber
+#define MQTT_SERVER   "192.168.1.100"
+#define MQTT_PORT     1883
+#define DEVICE_EUI    "tree-01"           // unique per sensor box
+#define MQTT_TOPIC    "vega/sensors/ingest"
+
+// ── FOOTSTEP DETECTION PARAMETERS ───────────────────────────────
+// Tune these on-site with actual foot traffic:
+#define FS_THRESHOLD     0.8f    // m/s² — peak must exceed this
+#define FS_COOLDOWN_MS   300     // minimum time between steps
+#define FS_WINDOW_MS     200     // RMS calculation window
+#define FS_SAMPLE_HZ     100     // accelerometer poll rate
+#define FS_WINDOW_SAMPLES (FS_WINDOW_MS * FS_SAMPLE_HZ / 1000) // = 20
+
+// ── TELEMETRY ───────────────────────────────────────────────────
+#define SEND_INTERVAL_MS 15000  // 15 seconds
+
+// ── GLOBALS ─────────────────────────────────────────────────────
+WiFiClient   wifi;
+PubSubClient mqtt(wifi);
+Adafruit_MPU6050 mpu;
+DHT dht(DHT_PIN, DHT_TYPE);
+
+// Footstep state
+float  fs_buffer[FS_WINDOW_SAMPLES];  // ring buffer for RMS
+int    fs_index = 0;
+int    fs_count = 0;                  // accumulated since last send
+unsigned long fs_last_peak = 0;
+
+unsigned long last_send = 0;
+unsigned long last_sample = 0;
+
+// ── SETUP ───────────────────────────────────────────────────────
+void setup() {
+    Serial.begin(115200);
+
+    // --- WiFi ---
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println(" WiFi OK");
+
+    // --- MQTT ---
+    mqtt.setServer(MQTT_SERVER, MQTT_PORT);
+
+    // --- Moisture sensor ---
+    pinMode(MOISTURE_PIN, INPUT);
+    analogSetAttenuation(ADC_11db);  // full 0-3.3V range
+
+    // --- DHT22 ---
+    dht.begin();
+
+    // --- MPU6050 (I2C: SDA=21, SCL=22) ---
+    Wire.begin(I2C_SDA, I2C_SCL);
+    if (!mpu.begin()) {
+        Serial.println("MPU6050 NOT FOUND — footstep disabled");
+    } else {
+        mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+        mpu.setFilterBandwidth(MPU6050_BAND_44_HZ);
+        // Enable the built-in Digital High-Pass Filter.
+        // This removes gravity + slow tilt drift (<5 Hz), leaving only
+        // vibration from footsteps, vehicles, and ambient noise.
+        mpu.setHighPassFilter(MPU6050_HIGHPASS_5_HZ);
+        Serial.println("MPU6050 OK, DHPF @ 5 Hz");
+    }
+
+    Serial.println("Wurzelwerk sensor online.");
+}
+
+// ── LOOP ────────────────────────────────────────────────────────
+void loop() {
+    mqtt.loop();
+
+    // Sample accelerometer at FS_SAMPLE_HZ
+    if (millis() - last_sample >= (1000 / FS_SAMPLE_HZ)) {
+        sample_footstep();
+        last_sample = millis();
+    }
+
+    // Send telemetry every SEND_INTERVAL_MS
+    if (millis() - last_send >= SEND_INTERVAL_MS) {
+        send_telemetry();
+        last_send = millis();
+    }
+}
+
+// ── FOOTSTEP DETECTION ──────────────────────────────────────────
+// Approach:
+//   1. MPU6050 DHPF removes gravity + slow tilt (hardware high-pass @ 5 Hz).
+//   2. We bandpass further in software: a 200ms RMS window smooths out
+//      individual samples and acts as a low-pass (rejects >50 Hz sensor noise).
+//   3. Result: 5-50 Hz bandpassed signal — the footstep sweet spot.
+//   4. Peak detection: if RMS exceeds threshold AND cooldown elapsed → footstep.
+//
+// Why not FFT: MPU6050 DHPF + time-domain RMS is ~100x cheaper on CPU
+// and empirically works for footstep counting on hard surfaces.
+// If accuracy is poor on grass/soft ground, increase FS_THRESHOLD sensitivity.
+//
+void sample_footstep() {
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+
+    // Use Z-axis magnitude after DHPF (gravity already removed)
+    float z = abs(a.acceleration.z);
+
+    // Rolling RMS window
+    fs_buffer[fs_index] = z * z;
+    fs_index = (fs_index + 1) % FS_WINDOW_SAMPLES;
+
+    // Compute RMS of the window
+    float sum_sq = 0;
+    for (int i = 0; i < FS_WINDOW_SAMPLES; i++) {
+        sum_sq += fs_buffer[i];
+    }
+    float rms = sqrt(sum_sq / FS_WINDOW_SAMPLES);
+
+    // Peak detection with cooldown
+    if (rms > FS_THRESHOLD && (millis() - fs_last_peak) > FS_COOLDOWN_MS) {
+        fs_count++;
+        fs_last_peak = millis();
+    }
+}
+
+// ── TELEMETRY SEND ──────────────────────────────────────────────
+void send_telemetry() {
+    if (!mqtt.connected()) {
+        mqtt_connect();
+    }
+
+    // --- DHT22 ---
+    float temp   = dht.readTemperature();     // °C
+    float humid  = dht.readHumidity();        // %RH
+    // DHT22 sometimes returns NaN on first read or wiring glitch
+    if (isnan(temp))  temp  = -99.0f;
+    if (isnan(humid)) humid = -1.0f;
+
+    // --- Moisture ---
+    int raw_moisture  = analogRead(MOISTURE_PIN);
+    int moisture_pct  = map(raw_moisture, 4095, 0, 0, 100);
+    // ^ assumes dry=high ADC, wet=low ADC. Flip the 4095/0 if reversed.
+
+    // --- Battery ---
+    // Estimate from internal ADC or external divider.
+    // Placeholder: 3.7V nominal Li-Ion. Replace with real reading if available.
+    float battery_v = 3.7f;
+
+    // --- Build JSON ---
+    // Matches FastAPI SensorReadingCreate schema: device_eui, moisture,
+    // temperature, humidity, battery_voltage, footfall_count, tilt_angle
+    String payload = "{";
+    payload += "\"device_eui\":\"" + String(DEVICE_EUI) + "\",";
+    payload += "\"moisture\":" + String(moisture_pct) + ",";
+    payload += "\"temperature\":" + String(temp, 1) + ",";
+    payload += "\"humidity\":" + String(humid, 1) + ",";
+    payload += "\"battery_voltage\":" + String(battery_v, 2) + ",";
+    payload += "\"footfall_count\":" + String(fs_count) + ",";
+    payload += "\"tilt_angle\":0.0,";   // TODO: compute from gyro if needed
+    payload += "\"rssi\":" + String(WiFi.RSSI()) + ",";
+    payload += "\"snr\":0.0";
+    payload += "}";
+
+    mqtt.publish(MQTT_TOPIC, payload.c_str());
+
+    Serial.println("Sent: " + payload);
+
+    // Reset accumulator
+    fs_count = 0;
+}
+
+// ── MQTT CONNECT ────────────────────────────────────────────────
+void mqtt_connect() {
+    while (!mqtt.connected()) {
+        Serial.print("MQTT...");
+        if (mqtt.connect(DEVICE_EUI)) {
+            Serial.println(" connected");
+        } else {
+            Serial.print(" failed (rc=");
+            Serial.print(mqtt.state());
+            Serial.println(") retry in 2s");
+            delay(2000);
+        }
+    }
+}

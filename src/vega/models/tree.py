@@ -1,10 +1,11 @@
 """Tree model — the central entity."""
 
 import uuid
-from datetime import datetime
-from sqlalchemy import Float, Integer, String, DateTime, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, Float, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
 
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 from enum import StrEnum
 
 
-class TreeStatus(str, StrEnum):
+class TreeStatus(StrEnum):
     HEALTHY = "healthy"
     STRESSED = "stressed"
     CRITICAL = "critical"
@@ -39,8 +40,8 @@ class Tree(Base):
     status: Mapped[str] = mapped_column(String(16), default=TreeStatus.UNKNOWN)
     photo_url: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     readings: Mapped[list["Reading"]] = relationship(back_populates="tree", lazy="selectin")
     waterings: Mapped[list["Watering"]] = relationship(back_populates="tree", lazy="selectin")

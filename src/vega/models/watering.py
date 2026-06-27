@@ -1,8 +1,9 @@
 """Watering log — citizen actions tracked for gamification."""
 
 import uuid
-from datetime import datetime
-from sqlalchemy import Float, String, DateTime, ForeignKey, Text
+from datetime import UTC, datetime
+
+from sqlalchemy import DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -19,7 +20,7 @@ class Watering(Base):
     photo_url: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
     points_earned: Mapped[int] = mapped_column(default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), index=True)
 
     tree: Mapped["Tree"] = relationship(back_populates="waterings")
     user: Mapped["User | None"] = relationship(back_populates="waterings")

@@ -1,13 +1,13 @@
 """Reward redemption routes."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
-from ..models.user import User
 from ..models.reward import Reward, RewardRedemption
-from ..schemas.gamification import RewardResponse, RedeemRequest, RedeemResponse
+from ..models.user import User
+from ..schemas.gamification import RedeemRequest, RedeemResponse, RewardResponse
 
 router = APIRouter(prefix="/api/rewards", tags=["rewards"])
 
@@ -18,7 +18,7 @@ async def list_rewards(
     db: AsyncSession = Depends(get_db),
 ):
     """List available rewards, optionally filtered by category."""
-    stmt = select(Reward).where(Reward.is_active == True)
+    stmt = select(Reward).where(Reward.is_active)
     if category:
         stmt = stmt.where(Reward.category == category)
 

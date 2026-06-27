@@ -4,8 +4,8 @@ In production this runs as a webhook receiver from TTN.
 For HackXplore: we accept pre-decoded JSON from the TTN HTTP integration.
 """
 
-import struct
 import logging
+import struct
 
 logger = logging.getLogger(__name__)
 

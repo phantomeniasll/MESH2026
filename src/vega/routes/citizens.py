@@ -1,17 +1,44 @@
 """Citizen-facing routes — NFC tap, watering, profile, leaderboard."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
 from ..database import get_db
 from ..models.tree import Tree
 from ..models.user import User
 from ..models.watering import Watering
-from ..schemas.citizen import WateringLogCreate, WateringLogResponse, UserProfile, LeaderboardEntry
+from ..schemas.citizen import (
+    LeaderboardEntry,
+    UserCreate,
+    UserProfile,
+    WateringLogCreate,
+    WateringLogResponse,
+)
 from ..services.points import award_points_for_watering
 
 router = APIRouter(prefix="/api/citizens", tags=["citizens"])
+
+
+@router.post("/register", response_model=UserProfile, status_code=201)
+async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
+    """Register a new citizen."""
+    user = User(**payload.model_dump())
+    db.add(user)
+    await db.flush()
+    return UserProfile(
+        id=user.id,
+        display_name=user.display_name,
+        neighborhood=user.neighborhood,
+        total_points=user.total_points,
+        current_streak=user.current_streak,
+        longest_streak=user.longest_streak,
+        trees_adopted=user.trees_adopted,
+        waterings_count=user.waterings_count,
+        level=user.level,
+        badges=[],
+        created_at=user.created_at,
+    )
 
 
 @router.post("/water", response_model=WateringLogResponse, status_code=201)
@@ -32,7 +59,7 @@ async def log_watering(payload: WateringLogCreate, db: AsyncSession = Depends(ge
         user = result.scalar_one_or_none()
 
     # Calculate points
-    points = await award_points_for_watering(db, user, tree)
+    points = await award_points_for_watering(user, tree)
 
     watering = Watering(
         tree_id=tree.id,
@@ -85,9 +112,9 @@ async def leaderboard(
     db: AsyncSession = Depends(get_db),
 ):
     """Top citizens by points, optionally filtered by neighborhood."""
-    stmt = select(User).where(User.is_active == True).order_by(User.total_points.desc()).limit(limit)
+    stmt = select(User).where(User.is_active).order_by(User.total_points.desc()).limit(limit)
     if neighborhood:
-        stmt = stmt.where(User.neighborhood == neighborhood)
+        stmt = stmt.where(User.neighborhood == neighborhood).order_by(User.total_points.desc()).limit(limit)
 
     result = await db.execute(stmt)
     users = result.scalars().all()

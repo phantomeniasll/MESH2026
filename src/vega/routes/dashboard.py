@@ -1,14 +1,14 @@
 """City dashboard routes — aggregated views for officials."""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
 from ..database import get_db
-from ..models.tree import Tree
 from ..models.reading import Reading
-from ..models.watering import Watering
+from ..models.tree import Tree
 from ..models.user import User
+from ..models.watering import Watering
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -21,7 +21,7 @@ async def city_overview(db: AsyncSession = Depends(get_db)):
     stressed = (await db.execute(select(func.count(Tree.id)).where(Tree.status == "stressed"))).scalar()
     critical = (await db.execute(select(func.count(Tree.id)).where(Tree.status == "critical"))).scalar()
     total_waterings = (await db.execute(select(func.count(Watering.id)))).scalar()
-    total_citizens = (await db.execute(select(func.count(User.id)).where(User.is_active == True))).scalar()
+    total_citizens = (await db.execute(select(func.count(User.id)).where(User.is_active))).scalar()
 
     return {
         "total_trees": total_trees,

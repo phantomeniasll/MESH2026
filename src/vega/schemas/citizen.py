@@ -1,6 +1,7 @@
 """Pydantic schemas for citizen-facing API."""
 
 from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -11,6 +12,13 @@ class WateringLogCreate(BaseModel):
     estimated_liters: float | None = Field(None, ge=0)
     photo_url: str | None = None
     notes: str | None = None
+
+
+class UserCreate(BaseModel):
+    """Register a new citizen."""
+    display_name: str = Field(..., min_length=1, max_length=64)
+    email: str | None = None
+    neighborhood: str | None = None
 
 
 class WateringLogResponse(BaseModel):

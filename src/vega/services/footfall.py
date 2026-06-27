@@ -5,7 +5,6 @@ The server-side service aggregates and visualizes the data.
 """
 
 import math
-from datetime import datetime, timedelta
 
 
 def detect_steps(accel_x: list[float], accel_y: list[float], accel_z: list[float],

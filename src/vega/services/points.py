@@ -1,13 +1,12 @@
 """Points economy engine — award calculation and streak logic."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
-from ..models.user import User
 from ..models.tree import Tree
+from ..models.user import User
 
 
-async def award_points_for_watering(db: AsyncSession, user: User | None, tree: Tree) -> int:
+async def award_points_for_watering(user: User | None, tree: Tree) -> int:
     """Calculate and award points for a watering action.
 
     Base points + streak multiplier + critical tree bonus.

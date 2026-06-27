@@ -1,6 +1,7 @@
 """Pydantic schemas for gamification."""
 
 from datetime import datetime
+
 from pydantic import BaseModel
 
 

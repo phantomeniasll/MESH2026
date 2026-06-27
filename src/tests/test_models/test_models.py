@@ -3,11 +3,11 @@
 import pytest
 from sqlalchemy import select
 
-from vega.models.tree import Tree
 from vega.models.reading import Reading
+from vega.models.reward import Reward, RewardRedemption
+from vega.models.tree import Tree
 from vega.models.user import User
 from vega.models.watering import Watering
-from vega.models.reward import Reward, RewardRedemption
 
 
 @pytest.mark.asyncio

@@ -1,8 +1,9 @@
 """Sensor reading model — moisture, temperature, accelerometer."""
 
 import uuid
-from datetime import datetime
-from sqlalchemy import Float, Integer, String, DateTime, ForeignKey
+from datetime import UTC, datetime
+
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -22,8 +23,8 @@ class Reading(Base):
     rssi: Mapped[int | None] = mapped_column(Integer)               # LoRa signal
     snr: Mapped[float | None] = mapped_column(Float)                # LoRa SNR
     raw_payload: Mapped[str | None] = mapped_column(String(512))
-    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     tree: Mapped["Tree"] = relationship(back_populates="readings")
 

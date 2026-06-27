@@ -1,6 +1,7 @@
 """Pydantic schemas for sensor data."""
 
 from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 

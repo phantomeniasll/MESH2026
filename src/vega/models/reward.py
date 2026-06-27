@@ -1,8 +1,9 @@
 """Reward model — city services exchangeable for points."""
 
 import uuid
-from datetime import datetime
-from sqlalchemy import Integer, String, DateTime, Boolean, Text
+from datetime import UTC, datetime
+
+from sqlalchemy import Boolean, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -19,7 +20,7 @@ class Reward(Base):
     stock: Mapped[int | None] = mapped_column(Integer)  # None = unlimited
     image_url: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     def __repr__(self) -> str:
         return f"<Reward {self.name} ({self.points_cost}pts)>"
@@ -33,7 +34,7 @@ class RewardRedemption(Base):
     reward_id: Mapped[str] = mapped_column(String(36), nullable=False)
     points_spent: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(16), default="pending")  # pending, fulfilled, cancelled
-    redeemed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    redeemed_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     fulfilled_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     def __repr__(self) -> str:
