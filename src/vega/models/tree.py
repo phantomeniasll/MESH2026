@@ -26,7 +26,7 @@ class TreeStatus(StrEnum):
 class Tree(Base):
     __tablename__ = "trees"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(__import__('uuid').uuid4()))
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     species: Mapped[str | None] = mapped_column(String(128))
     latitude: Mapped[float] = mapped_column(Float, nullable=False)

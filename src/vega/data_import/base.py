@@ -1,6 +1,6 @@
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator, Protocol
-from typing import NamedTuple
+from typing import NamedTuple, Protocol
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,8 @@
+from collections.abc import Iterator
+
 import httpx
-from ..base import NormalizedRecord, BBox, SourceAdapter
-from typing import Iterator
+
+from ..base import BBox, NormalizedRecord
 
 BASE_URL = (
     "https://geoportal.karlsruhe.de/ags04/rest/services/Hosted/Baumkataster"
@@ -17,7 +19,7 @@ class KarlsruheArcGIS:
         offset = 0
         fetched = 0
         while True:
-            params = {
+            params: dict[str, str | int] = {
                 "where": "stadtteil IS NOT NULL",
                 "outFields": FIELDS,
                 "returnGeometry": "true",

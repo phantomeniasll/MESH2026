@@ -1,8 +1,7 @@
 """VEGA FastAPI application entry point."""
 
-from pathlib import Path
-
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

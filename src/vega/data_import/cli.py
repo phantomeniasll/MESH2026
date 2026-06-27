@@ -7,7 +7,6 @@ Usage:
 
 import argparse
 import asyncio
-import sys
 
 from .pipeline import run_pipeline
 

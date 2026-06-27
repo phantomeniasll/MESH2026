@@ -1,7 +1,8 @@
 import csv
 import pathlib
-from ..base import NormalizedRecord, BBox
-from typing import Iterator
+from collections.abc import Iterator
+
+from ..base import BBox, NormalizedRecord
 
 DROP_DIR = pathlib.Path(__file__).parent.parent.parent.parent.parent / "data" / "drop"
 

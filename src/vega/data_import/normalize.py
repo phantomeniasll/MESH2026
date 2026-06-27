@@ -1,6 +1,7 @@
-from .base import NormalizedRecord
-from typing import Iterable
 import math
+from collections.abc import Iterable
+
+from .base import NormalizedRecord
 
 
 def _grid_key(lat: float, lng: float, cell_m: float = 3.0) -> tuple:

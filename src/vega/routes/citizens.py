@@ -79,7 +79,7 @@ async def log_watering(payload: WateringLogCreate, db: AsyncSession = Depends(ge
 
     # Update user stats — points, streak, level, last activity
     if user:
-        update_user_after_watering(user, points)
+        update_user_after_watering(user, points)  # type: ignore[arg-type]
 
     await db.flush()
     return WateringLogResponse(
@@ -89,8 +89,8 @@ async def log_watering(payload: WateringLogCreate, db: AsyncSession = Depends(ge
         estimated_liters=watering.estimated_liters,
         photo_url=watering.photo_url,
         points_earned=watering.points_earned,
-        total_points=user.total_points if user else 0,
-        current_streak=user.current_streak if user else 0,
+        total_points=user.total_points if user else 0,  # type: ignore
+        current_streak=user.current_streak if user else 0,  # type: ignore
         created_at=watering.created_at,
     )
 

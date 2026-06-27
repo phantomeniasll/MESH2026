@@ -1,4 +1,3 @@
-import math
 
 
 def _h(tree_id: str, salt: int = 0) -> float:

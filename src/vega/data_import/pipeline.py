@@ -3,7 +3,6 @@
 import asyncio
 import gzip
 import json
-import math
 from datetime import UTC, datetime
 from pathlib import Path
 

@@ -1,7 +1,9 @@
-import httpx
 import re
-from ..base import NormalizedRecord, BBox, SourceAdapter
-from typing import Iterator
+from collections.abc import Iterator
+
+import httpx
+
+from ..base import BBox, NormalizedRecord
 
 ENDPOINT = "https://overpass-api.de/api/interpreter"
 
