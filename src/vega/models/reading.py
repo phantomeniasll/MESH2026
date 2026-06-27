@@ -20,8 +20,9 @@ class Reading(Base):
     battery_voltage: Mapped[float | None] = mapped_column(Float)    # V
     footfall_count: Mapped[int | None] = mapped_column(Integer)     # since last reading
     tilt_angle: Mapped[float | None] = mapped_column(Float)         # degrees
-    rssi: Mapped[int | None] = mapped_column(Integer)               # LoRa signal
+    rssi: Mapped[int | None] = mapped_column(Integer)               # WiFi / LoRa signal
     snr: Mapped[float | None] = mapped_column(Float)                # LoRa SNR
+    sound_level: Mapped[int | None] = mapped_column(Integer)        # 0-100, mic peak-to-peak
     raw_payload: Mapped[str | None] = mapped_column(String(512))
     recorded_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))

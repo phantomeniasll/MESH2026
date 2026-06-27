@@ -7,14 +7,16 @@
 // PROTOCOL: WiFi → HTTP POST to FastAPI backend
 //
 // SENSORS:
-//   DHT22     — Temperature + Humidity, one-wire on GPIO 33
+//   DHT11     — Temperature + Humidity, one-wire on GPIO 14
 //   Moisture  — Capacitive soil moisture, analog on GPIO 34 (ADC1)
-//   Vibration — Digital knock/vibration sensor on GPIO 27 (pulse counter)
+//   Vibration — Digital sensor on GPIO 27 (counts every falling edge)
+//   Microphone — Analog electret mic (MAX4466/MAX9814) on GPIO 32, ADC1
 //
 // PINOUT (see wiring.md):
-//   GPIO 33 → DHT22 DATA (4.7kΩ pull-up to 3.3V)
+//   GPIO 14 → DHT11 DATA (integrated pull-up on module)
 //   GPIO 34 → Moisture SIG (ADC)
 //   GPIO 27 → Vibration DO (digital output, LOW = triggered)
+//   GPIO 32 → Microphone OUT (analog, ADC1_CH4)
 //
 
 #include <Arduino.h>
@@ -24,43 +26,41 @@
 
 // ── PIN ASSIGNMENTS ────────────────────────────────────────────
 #define MOISTURE_PIN  34   // ADC1 — capacitive soil moisture
-#define DHT_PIN       33   // DHT22 one-wire
-#define DHT_TYPE      DHT22
+#define DHT_PIN       14   // DHT11 one-wire
+#define DHT_TYPE      DHT11
 #define VIBE_PIN      27   // Digital vibration sensor (LOW when triggered)
+#define MIC_PIN       32   // Analog electret microphone (ADC1_CH4)
+#define MIC_SAMPLE_MS 500  // Averaging window for sound level
 
 // ── NETWORK (change on-site) ────────────────────────────────────
-#define WIFI_SSID     "HackXplore"
-#define WIFI_PASS     "password"
+#define WIFI_SSID     "phantom"
+#define WIFI_PASS     "12345678"
 
 // FastAPI backend — your laptop IP running: uvicorn vega.main:app
-#define API_HOST      "192.168.1.100"
-#define API_PORT      8000
+#define API_HOST      "mountains-tabs-lyrics-roads.trycloudflare.com"
 #define API_PATH      "/api/sensors/ingest"
+#define API_KEY       "jierpjijdklghweiorjnv25234mnqwkehijgsd"  // must match VEGA_API_KEY on server
 #define DEVICE_EUI    "tree-01"           // unique per sensor box
 
-// ── VIBRATION / FOOTSTEP DETECTION ──────────────────────────────
-#define FS_THRESHOLD_MS   50     // pulse must be this long to count
-#define FS_COOLDOWN_MS    400    // minimum gap between footsteps
-
 // ── TELEMETRY ───────────────────────────────────────────────────
-#define SEND_INTERVAL_MS 15000  // 15 seconds
+#define SEND_INTERVAL_MS 1000  // 15 seconds
 
 // ── GLOBALS ─────────────────────────────────────────────────────
 WiFiClient client;
 DHT dht(DHT_PIN, DHT_TYPE);
 
-// Vibration state
-volatile bool vibe_triggered = false;
-int           fs_count       = 0;
-unsigned long fs_last_edge   = 0;
-unsigned long fs_pulse_start = 0;
+// Vibration state (volatile — incremented from ISR)
+volatile int fs_count = 0;
 
 unsigned long last_send = 0;
 
 // ── INTERRUPT HANDLER ─────────────────────────────────────────
 void IRAM_ATTR vibe_isr() {
-    vibe_triggered = true;
+    fs_count++;
 }
+
+// ── FORWARD DECLARATIONS ──────────────────────────────────────
+void send_telemetry();
 
 // ── SETUP ─────────────────────────────────────────────────────
 void setup() {
@@ -75,33 +75,46 @@ void setup() {
     Serial.print("\nWiFi OK  IP: ");
     Serial.println(WiFi.localIP());
 
+    // --- Internet connectivity check (ping Google) ---
+    {
+        HTTPClient ping;
+        ping.begin(client, "http://www.google.com");
+        ping.setTimeout(5000);
+        int pingStatus = ping.GET();
+        Serial.print("Ping google.com → ");
+        Serial.print(pingStatus);
+        if (pingStatus > 0) {
+            Serial.println("  Internet OK");
+        } else {
+            Serial.print("  FAIL: ");
+            Serial.println(ping.errorToString(pingStatus));
+        }
+        ping.end();
+    }
+
     // --- Moisture sensor ---
     pinMode(MOISTURE_PIN, INPUT);
     analogSetAttenuation(ADC_11db);
 
-    // --- DHT22 ---
+    // --- DHT11 ---
     dht.begin();
 
-    // --- Vibration sensor ---
+    // --- Microphone (analog) ---
+    pinMode(MIC_PIN, INPUT);
+
+    // --- Vibration sensor (counts every falling edge) ---
     pinMode(VIBE_PIN, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(VIBE_PIN), vibe_isr, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(VIBE_PIN), vibe_isr, FALLING);
 
     Serial.print("Target: http://");
     Serial.print(API_HOST);
     Serial.print(":");
-    Serial.print(API_PORT);
     Serial.println(API_PATH);
     Serial.println("Wurzelwerk sensor online (HTTP edition).");
 }
 
 // ── LOOP ──────────────────────────────────────────────────────
 void loop() {
-    // Process vibration events outside ISR
-    if (vibe_triggered) {
-        vibe_triggered = false;
-        process_vibration();
-    }
-
     // Send telemetry every SEND_INTERVAL_MS
     if (millis() - last_send >= SEND_INTERVAL_MS) {
         send_telemetry();
@@ -109,38 +122,34 @@ void loop() {
     }
 }
 
-// ── VIBRATION PROCESSING ──────────────────────────────────────
-void process_vibration() {
-    int state = digitalRead(VIBE_PIN);
-    unsigned long now = millis();
-
-    if (state == LOW) {
-        fs_pulse_start = now;
-    } else {
-        if (fs_pulse_start > 0) {
-            unsigned long pulse_width = now - fs_pulse_start;
-            fs_pulse_start = 0;
-
-            if (pulse_width >= FS_THRESHOLD_MS
-                && (now - fs_last_edge) >= FS_COOLDOWN_MS) {
-                fs_count++;
-                fs_last_edge = now;
-            }
-        }
-    }
-}
-
 // ── TELEMETRY SEND ────────────────────────────────────────────
 void send_telemetry() {
-    // --- DHT22 ---
-    float temp  = dht.readTemperature();
-    float humid = dht.readHumidity();
-    if (isnan(temp))  temp  = -99.0f;
-    if (isnan(humid)) humid = -1.0f;
+    // --- DHT11 ---
+    dht.readTemperature();   // wake-up read (discard)
+    dht.readHumidity();
+    delay(250);
+    float temperature = dht.readTemperature();
+    float humidity    = dht.readHumidity();
+    if (isnan(temperature)) temperature = -99.0f;
+    if (isnan(humidity))    humidity    = -1.0f;
 
     // --- Moisture ---
     int raw_moisture = analogRead(MOISTURE_PIN);
     int moisture_pct = map(raw_moisture, 4095, 0, 0, 100);
+
+    // --- Sound level (peak-to-peak over 500 ms) ---
+    int   mic_min  = 4095;
+    int   mic_max  = 0;
+    unsigned long mic_start = millis();
+    while (millis() - mic_start < MIC_SAMPLE_MS) {
+        int val = analogRead(MIC_PIN);
+        if (val < mic_min) mic_min = val;
+        if (val > mic_max) mic_max = val;
+    }
+    int   mic_pp   = mic_max - mic_min;          // peak-to-peak (0–4095)
+    int   sound_pct = map(mic_pp, 0, 3000, 0, 100); // normalize (3V p-p ≈ max)
+    if (sound_pct > 100) sound_pct = 100;
+    if (sound_pct < 0)   sound_pct = 0;
 
     // --- Battery ---
     float battery_v = 3.7f;
@@ -148,24 +157,44 @@ void send_telemetry() {
     // --- RSSI ---
     int rssi = WiFi.RSSI();
 
+    // --- Debug: print all readings ---
+    Serial.println("───── TELEMETRY ─────");
+    Serial.print("  DHT temp  : "); Serial.print(temperature, 1);
+    Serial.print(" °C  (raw NaN? "); Serial.print(isnan(temperature) ? "YES" : "no");
+    Serial.println(")");
+    Serial.print("  DHT humid : "); Serial.print(humidity, 1);
+    Serial.print(" %   (raw NaN? "); Serial.print(isnan(humidity) ? "YES" : "no");
+    Serial.println(")");
+    Serial.print("  Moisture  : raw="); Serial.print(raw_moisture);
+    Serial.print("  pct="); Serial.println(moisture_pct);
+    Serial.print("  Sound lvl : "); Serial.print(sound_pct);
+    Serial.print(" %  (p-p="); Serial.print(mic_pp);
+    Serial.println(")");
+    Serial.print("  Battery   : "); Serial.print(battery_v, 2); Serial.println(" V");
+    Serial.print("  Footsteps : "); Serial.println(fs_count);
+    Serial.print("  RSSI      : "); Serial.print(rssi); Serial.println(" dBm");
+    Serial.println("───────────────────────");
+
     // --- Build JSON ---
     String json = "{";
     json += "\"device_eui\":\"" + String(DEVICE_EUI) + "\",";
     json += "\"moisture\":" + String(moisture_pct) + ",";
-    json += "\"temperature\":" + String(temp, 1) + ",";
-    json += "\"humidity\":" + String(humid, 1) + ",";
+    json += "\"temperature\":" + String(temperature, 1) + ",";
+    json += "\"humidity\":" + String(humidity, 1) + ",";
     json += "\"battery_voltage\":" + String(battery_v, 2) + ",";
     json += "\"footfall_count\":" + String(fs_count) + ",";
     json += "\"tilt_angle\":0.0,";
+    json += "\"sound_level\":" + String(sound_pct) + ",";
     json += "\"rssi\":" + String(rssi) + ",";
     json += "\"snr\":0.0";
     json += "}";
 
     // --- HTTP POST ---
     HTTPClient http;
-    String url = "http://" + String(API_HOST) + ":" + String(API_PORT) + String(API_PATH);
+    String url = "http://" + String(API_HOST) + String(API_PATH);
     http.begin(client, url);
     http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-API-Key", API_KEY);
 
     int status = http.POST(json);
 

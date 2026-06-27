@@ -6,14 +6,20 @@ from pydantic import BaseModel, Field
 
 
 class SensorReadingCreate(BaseModel):
-    """Payload from a LoRaWAN device uplink."""
+    """Payload from a LoRaWAN device uplink.
+
+    Ranges are deliberately wide — sensors may send error sentinel values
+    (e.g. -99 °C, -1 %RH) during startup or fault conditions.
+    Application logic, not the schema, decides what's plausible.
+    """
     device_eui: str = Field(..., max_length=32)
-    moisture: float | None = Field(None, ge=0, le=100)
-    temperature: float | None = Field(None, ge=-40, le=85)
-    humidity: float | None = Field(None, ge=0, le=100)
-    battery_voltage: float | None = Field(None, ge=0, le=5)
-    footfall_count: int | None = Field(None, ge=0)
-    tilt_angle: float | None = Field(None, ge=0, le=180)
+    moisture: float | None = Field(None, ge=-100, le=200)
+    temperature: float | None = Field(None, ge=-100, le=125)
+    humidity: float | None = Field(None, ge=-100, le=200)
+    battery_voltage: float | None = Field(None, ge=-1, le=15)
+    footfall_count: int | None = Field(None, ge=-1)
+    tilt_angle: float | None = Field(None, ge=-1, le=360)
+    sound_level: int | None = Field(None, ge=-1, le=100)
     rssi: int | None = None
     snr: float | None = None
     raw_payload: str | None = None
@@ -28,6 +34,7 @@ class SensorReadingResponse(BaseModel):
     battery_voltage: float | None
     footfall_count: int | None
     tilt_angle: float | None
+    sound_level: int | None
     rssi: int | None
     snr: float | None
     recorded_at: datetime

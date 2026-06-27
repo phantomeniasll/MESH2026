@@ -12,6 +12,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        env_prefix="VEGA_",
     )
 
     # Application
@@ -20,6 +21,9 @@ class Settings(BaseSettings):
     debug: bool = False
     host: str = "0.0.0.0"
     port: int = 8000
+
+    # Authentication — pre-shared key for ESP32 sensor boxes
+    api_key: str = ""
 
     # Database
     database_url: str = "sqlite+aiosqlite:///vega.db"

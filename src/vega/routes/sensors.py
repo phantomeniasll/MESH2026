@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..auth import require_api_key
 from ..database import get_db
 from ..models.reading import Reading
 from ..models.tree import Tree
@@ -17,7 +18,11 @@ router = APIRouter(prefix="/api/sensors", tags=["sensors"])
 
 
 @router.post("/ingest", response_model=SensorReadingResponse, status_code=201)
-async def ingest_reading(payload: SensorReadingCreate, db: AsyncSession = Depends(get_db)):
+async def ingest_reading(
+    payload: SensorReadingCreate,
+    db: AsyncSession = Depends(get_db),
+    _api_key: str = Depends(require_api_key),
+):
     """Ingest a sensor reading from a LoRaWAN device uplink."""
 
     # ── Print incoming reading for visibility ──
@@ -35,12 +40,19 @@ async def ingest_reading(payload: SensorReadingCreate, db: AsyncSession = Depend
     )
     tree = result.scalar_one_or_none()
     if not tree:
-        print(f"⚠️  No tree registered for EUI '{payload.device_eui}' — "
-              f"reading discarded.")
-        raise HTTPException(
-            status_code=404,
-            detail=f"No tree registered for device EUI: {payload.device_eui}",
+        # Auto-register unknown devices at Steamworks Karlsruhe
+        tree = Tree(
+            name=f"Auto: {payload.device_eui}",
+            device_eui=payload.device_eui,
+            latitude=49.0015270,
+            longitude=8.3879422,
+            neighborhood="Südweststadt",
+            address="Roonstraße 23a, 76137 Karlsruhe",
+            notes="Auto-registered from unknown device — HackXplore 2026",
         )
+        db.add(tree)
+        await db.flush()
+        print(f"🆕 Auto-registered tree '{tree.name}'  id={tree.id[:8]}…")
 
     reading = Reading(
         tree_id=tree.id,
@@ -50,6 +62,7 @@ async def ingest_reading(payload: SensorReadingCreate, db: AsyncSession = Depend
         battery_voltage=payload.battery_voltage,
         footfall_count=payload.footfall_count,
         tilt_angle=payload.tilt_angle,
+        sound_level=payload.sound_level,
         rssi=payload.rssi,
         snr=payload.snr,
         raw_payload=payload.raw_payload,
@@ -70,6 +83,29 @@ async def ingest_reading(payload: SensorReadingCreate, db: AsyncSession = Depend
           f"status={tree.status}")
 
     return SensorReadingResponse.model_validate(reading)
+
+
+@router.get("/tree/{tree_id}/readings")
+async def tree_readings(
+    tree_id: str,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the most recent *limit* readings for a tree (time series).
+
+    Query params:
+    - ``limit`` (default 100): max readings to return, newest first.
+    """
+    result = await db.execute(
+        select(Reading)
+        .where(Reading.tree_id == tree_id)
+        .order_by(Reading.recorded_at.desc())
+        .limit(max(1, min(limit, 1000)))
+    )
+    readings = result.scalars().all()
+    return [
+        SensorReadingResponse.model_validate(r) for r in readings
+    ]
 
 
 @router.get("/tree/{tree_id}/health", response_model=TreeHealthSummary)

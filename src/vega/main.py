@@ -1,9 +1,12 @@
 """VEGA FastAPI application entry point."""
 
+from pathlib import Path
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 from .config import settings
 from .database import init_db
@@ -45,6 +48,13 @@ app.include_router(rewards.router)
 async def health_check():
     """Liveness probe."""
     return {"status": "ok", "version": settings.app_version}
+
+
+@app.get("/review", response_class=HTMLResponse)
+async def review_page():
+    """Human-facing sensor data review page."""
+    html_path = Path(__file__).parent / "static" / "review.html"
+    return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
 
 
 def main():

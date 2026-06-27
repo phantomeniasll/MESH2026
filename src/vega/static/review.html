@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VEGA — Sensor Data Review</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --text:#c9d1d9; --muted:#8b949e;
+          --green:#3fb950; --yellow:#d2991d; --red:#f85149; --blue:#58a6ff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg);
+         color:var(--text); line-height:1.5; }
+  .container { max-width:1200px; margin:0 auto; padding:24px; }
+  h1 { font-size:1.5rem; margin-bottom:4px; }
+  .subtitle { color:var(--muted); font-size:0.85rem; margin-bottom:24px; }
+  .controls { display:flex; gap:12px; align-items:center; margin-bottom:24px; flex-wrap:wrap; }
+  select, button { background:var(--card); color:var(--text); border:1px solid var(--border);
+                   padding:8px 16px; border-radius:6px; font-size:0.9rem; cursor:pointer; }
+  button { background:var(--blue); border-color:var(--blue); color:#fff; font-weight:600; }
+  button:hover { opacity:0.85; }
+  .chart-wrap { background:var(--card); border:1px solid var(--border); border-radius:8px;
+                padding:20px; margin-bottom:24px; }
+  canvas { max-height:320px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:600; }
+  .badge-ok { background:var(--green); color:#000; }
+  .badge-warn { background:var(--yellow); color:#000; }
+  .badge-bad { background:var(--red); color:#fff; }
+  .badge-null { background:var(--border); color:var(--muted); }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--border);
+          border-radius:8px; overflow:hidden; }
+  th, td { padding:10px 14px; text-align:left; border-bottom:1px solid var(--border); font-size:0.85rem; }
+  th { background:var(--border); color:var(--muted); font-weight:600; text-transform:uppercase;
+       font-size:0.75rem; letter-spacing:0.05em; }
+  tr:hover { background:rgba(255,255,255,0.03); }
+  .legend { display:flex; gap:24px; flex-wrap:wrap; margin-bottom:20px; padding:16px;
+            background:var(--card); border:1px solid var(--border); border-radius:8px; }
+  .legend-item { display:flex; align-items:center; gap:8px; font-size:0.8rem; }
+  .legend-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+  .info-box { background:rgba(88,166,255,0.08); border:1px solid rgba(88,166,255,0.2);
+              border-radius:8px; padding:16px; margin-bottom:24px; }
+  .info-box h3 { color:var(--blue); font-size:0.9rem; margin-bottom:8px; }
+  .info-box p { font-size:0.82rem; color:var(--muted); margin-bottom:4px; }
+  .anomaly-row td { background:rgba(248,81,73,0.08); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🌳 VEGA Sensor Review</h1>
+  <p class="subtitle">Inspect raw readings &amp; understand sensor behaviour</p>
+
+  <div class="controls">
+    <label for="treeSelect">Tree:</label>
+    <select id="treeSelect"><option>Loading…</option></select>
+    <label for="limitSelect">Window:</label>
+    <select id="limitSelect">
+      <option value="10" selected>10 readings</option>
+      <option value="25">25 readings</option>
+      <option value="50">50 readings</option>
+      <option value="100">100 readings</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+      <input type="checkbox" id="autoRefresh" checked onchange="toggleAuto()"> Live
+    </label>
+    <span id="refreshStatus" style="color:var(--muted);font-size:0.8rem"></span>
+  </div>
+
+  <!-- Sensor fault legend -->
+  <div class="legend">
+    <span class="legend-item"><span class="legend-dot" style="background:var(--green)"></span> Normal</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span> Suspicious</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span> Fault / Error Code</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--border)"></span> No data</span>
+  </div>
+
+  <div class="info-box" id="faultInfo" style="display:none">
+    <h3>⚠️  Sensor Fault Codes Explained</h3>
+    <p><code>-99 °C</code> / <code>-1 %</code> — <strong>Power-on sentinel.</strong> The sensor reports these values during boot / self-test before the first real measurement. The ESP32 may send a reading before the sensor is fully initialised. Harmless — subsequent readings should show real values.</p>
+    <p><code>-127 °C</code> — <strong>I²C comms failure.</strong> The MCU couldn't reach the sensor over the bus. Check wiring (SDA/SCL) or sensor power.</p>
+    <p><code>0 % moisture</code> in soil sensor — <strong>Sensor in air or unplugged.</strong> Capacitive sensors read ~0% when not inserted in soil.</p>
+    <p style="margin-top:8px;font-size:0.78rem;color:var(--muted)">These are <em>hardware-level</em> values, not bugs in VEGA. The API accepts them so you can see what's happening.</p>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-wrap">
+    <canvas id="tsChart"></canvas>
+  </div>
+
+  <!-- Readings table -->
+  <table>
+    <thead>
+      <tr>
+        <th>Time (UTC)</th>
+        <th>Moisture</th>
+        <th>Temp</th>
+        <th>Humidity</th>
+        <th>Sound</th>
+        <th>Battery</th>
+        <th>Footfall</th>
+        <th>RSSI</th>
+      </tr>
+    </thead>
+    <tbody id="readingsBody">
+      <tr><td colspan="8" style="text-align:center;color:var(--muted)">Loading…</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+const API = '';  // same-origin
+
+let chart = null;
+let autoTimer = null;
+const AUTO_INTERVAL = 2000;  // poll every 2s
+
+// ── Quality classifier ──
+function classify(label, val) {
+  if (val === null || val === undefined) return 'null';
+  switch (label) {
+    case 'temperature':
+      if (val <= -99) return 'bad';
+      if (val < -40) return 'warn';
+      if (val > 85) return 'warn';
+      return 'ok';
+    case 'humidity':
+      if (val < 0) return 'bad';
+      if (val > 100) return 'warn';
+      return 'ok';
+    case 'moisture':
+      if (val < 0) return 'bad';
+      if (val > 100) return 'warn';
+      return 'ok';
+    case 'battery_voltage':
+      if (val < 0) return 'bad';
+      if (val > 5) return 'warn';
+      if (val < 2.8) return 'warn';
+      return 'ok';
+    default:
+      return 'ok';
+  }
+}
+
+function badge(cls, text) {
+  const map = {ok:'badge-ok', warn:'badge-warn', bad:'badge-bad', null:'badge-null'};
+  return `<span class="badge ${map[cls]||'badge-null'}">${text}</span>`;
+}
+
+function formatVal(label, val) {
+  if (val === null || val === undefined) return badge('null', '—');
+  const cls = classify(label, val);
+  let unit = '';
+  if (label === 'temperature') unit = '°C';
+  if (label === 'humidity' || label === 'moisture' || label === 'sound_level') unit = '%';
+  if (label === 'battery_voltage') unit = 'V';
+  if (label === 'rssi') unit = 'dB';
+  return badge(cls, val.toFixed(1) + unit);
+}
+
+// ── Auto-refresh ──
+function toggleAuto() {
+  if (document.getElementById('autoRefresh').checked) {
+    startAuto();
+  } else {
+    stopAuto();
+  }
+}
+
+function startAuto() {
+  stopAuto();
+  autoTimer = setInterval(refresh, AUTO_INTERVAL);
+  document.getElementById('refreshStatus').textContent = '● live';
+}
+
+function stopAuto() {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  document.getElementById('refreshStatus').textContent = '';
+}
+
+// ── Load tree list ──
+async function loadTrees() {
+  const r = await fetch(API + '/api/trees');
+  const trees = await r.json();
+  const sel = document.getElementById('treeSelect');
+  sel.innerHTML = trees.map(t =>
+    `<option value="${t.id}">${t.name} (${t.device_eui||'no EUI'}) — ${t.status}</option>`
+  ).join('');
+  if (trees.length > 0) refresh();
+}
+
+// ── Load readings & render ──
+async function refresh() {
+  const treeId = document.getElementById('treeSelect').value;
+  const limit = document.getElementById('limitSelect').value;
+  if (!treeId) return;
+
+  const r = await fetch(API + `/api/sensors/tree/${treeId}/readings?limit=${limit}`);
+  const readings = await r.json();
+  if (!Array.isArray(readings)) return;
+
+  // Reverse so oldest → newest for chart
+  const sorted = [...readings].reverse();
+
+  renderChart(sorted);
+  renderTable([...readings]);  // newest first for table
+
+  // Show fault info box if any reading has bad values
+  const hasFault = readings.some(d =>
+    classify('temperature', d.temperature) === 'bad' ||
+    classify('humidity', d.humidity) === 'bad'
+  );
+  document.getElementById('faultInfo').style.display = hasFault ? 'block' : 'none';
+}
+
+// ── Chart (Chart.js time series) ──
+function renderChart(data) {
+  const labels = data.map(d => {
+    const t = new Date(d.recorded_at);
+    return t.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  });
+
+  const datasets = [
+    {label:'Moisture %', data:data.map(d=>d.moisture),
+     borderColor:'#3fb950', backgroundColor:'rgba(63,185,80,0.1)', tension:0.3, yAxisID:'y'},
+    {label:'Temperature °C', data:data.map(d=>d.temperature),
+     borderColor:'#f85149', backgroundColor:'rgba(248,81,73,0.1)', tension:0.3, yAxisID:'y'},
+    {label:'Humidity %', data:data.map(d=>d.humidity),
+     borderColor:'#58a6ff', backgroundColor:'rgba(88,166,255,0.1)', tension:0.3, yAxisID:'y'},
+    {label:'Sound %', data:data.map(d=>d.sound_level),
+     borderColor:'#d2991d', backgroundColor:'rgba(210,153,29,0.1)', tension:0.3, yAxisID:'y'},
+  ];
+
+  if (chart) chart.destroy();
+  const ctx = document.getElementById('tsChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {labels, datasets},
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {labels: {color:'#c9d1d9', usePointStyle:true, pointStyleWidth:10}},
+      },
+      scales: {
+        x: {ticks:{color:'#8b949e', maxTicksLimit:10}, grid:{color:'#21262d'}},
+        y: {ticks:{color:'#8b949e'}, grid:{color:'#21262d'},
+            title:{display:true,text:'°C / %',color:'#8b949e'}},
+      },
+    },
+  });
+}
+
+// ── Table ──
+function renderTable(readings) {
+  const tbody = document.getElementById('readingsBody');
+  tbody.innerHTML = readings.map(d => {
+    const ts = new Date(d.recorded_at).toISOString().replace('T',' ').slice(0,19);
+    const hasAnomaly = ['temperature','humidity','moisture'].some(k => classify(k, d[k]) === 'bad');
+    return `<tr class="${hasAnomaly?'anomaly-row':''}">
+      <td style="font-family:monospace;font-size:0.8rem">${ts}</td>
+      <td>${formatVal('moisture', d.moisture)}</td>
+      <td>${formatVal('temperature', d.temperature)}</td>
+      <td>${formatVal('humidity', d.humidity)}</td>
+      <td>${formatVal('sound_level', d.sound_level)}</td>
+      <td>${formatVal('battery_voltage', d.battery_voltage)}</td>
+      <td>${d.footfall_count ?? badge('null','—')}</td>
+      <td>${d.rssi !== null ? d.rssi+' dB' : badge('null','—')}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Init ──
+loadTrees();
+startAuto();
+document.getElementById('treeSelect').addEventListener('change', refresh);
+document.getElementById('limitSelect').addEventListener('change', refresh);
+</script>
+</body>
+</html>
