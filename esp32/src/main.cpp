@@ -23,6 +23,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <DHT.h>
+#include <soc/sens_reg.h>       // REG_SET_FIELD, SENS_SAR1_SAMPLE_CYCLE
+#include <driver/rtc_io.h>      // rtc_gpio_pulldown_en (RTC-domain, survives ADC init)
 
 // ── PIN ASSIGNMENTS ────────────────────────────────────────────
 #define MOISTURE_PIN  34   // ADC1 — capacitive soil moisture
@@ -100,7 +102,27 @@ void setup() {
     dht.begin();
 
     // --- Microphone (analog) ---
-    pinMode(MIC_PIN, INPUT);
+    // GPIO 32 = ADC1_CH4.
+    //
+    // KY-038 / LM393 module AO output is often AC-coupled with no DC bias path.
+    // The ESP32 ADC then sees a floating pin that drifts to VCC via leakage.
+    //
+    // Step 1: configure ADC attenuation + max sampling time.
+    analogSetPinAttenuation(MIC_PIN, ADC_11db);     // 0–3.9 V range
+    // Max sampling time before calling analogRead():
+    //   SAR1_SAMPLE_CYCLE = 0b111 = 4096 ADC clock cycles ≈ 512 μs at 8 MHz ADC clock
+    REG_SET_FIELD(SENS_SAR_READ_CTRL_REG, SENS_SAR1_SAMPLE_CYCLE, 0b111);
+
+    // Step 2: do one dummy read so the Arduino framework calls adc_gpio_init().
+    //         (adc_gpio_init sets the pin to ADC mode + clears pull resistors.)
+    analogRead(MIC_PIN);
+
+    // Step 3: re-enable the internal weak pulldown (~45 kΩ) at the RTC IO level.
+    //         RTC pull controls live in a separate register from the IO MUX function
+    //         select, so they persist even when the pin is in ADC mode.
+    rtc_gpio_pulldown_en(GPIO_NUM_32);
+    rtc_gpio_pullup_dis(GPIO_NUM_32);
+    delay(10);                                      // let the coupling cap settle
 
     // --- Vibration sensor (counts every falling edge) ---
     pinMode(VIBE_PIN, INPUT_PULLUP);
@@ -140,14 +162,19 @@ void send_telemetry() {
     // --- Sound level (peak-to-peak over 500 ms) ---
     int   mic_min  = 4095;
     int   mic_max  = 0;
+    long  mic_sum  = 0;
+    int   mic_count = 0;
     unsigned long mic_start = millis();
     while (millis() - mic_start < MIC_SAMPLE_MS) {
         int val = analogRead(MIC_PIN);
+        mic_sum += val;
+        mic_count++;
         if (val < mic_min) mic_min = val;
         if (val > mic_max) mic_max = val;
     }
+    int   mic_avg  = (mic_count > 0) ? (mic_sum / mic_count) : 0;
     int   mic_pp   = mic_max - mic_min;          // peak-to-peak (0–4095)
-    int   sound_pct = map(mic_pp, 0, 3000, 0, 100); // normalize (3V p-p ≈ max)
+    int   sound_pct = map(mic_pp, 0, 1500, 0, 100); // calibrated to observed peak-peak
     if (sound_pct > 100) sound_pct = 100;
     if (sound_pct < 0)   sound_pct = 0;
 
@@ -168,7 +195,10 @@ void send_telemetry() {
     Serial.print("  Moisture  : raw="); Serial.print(raw_moisture);
     Serial.print("  pct="); Serial.println(moisture_pct);
     Serial.print("  Sound lvl : "); Serial.print(sound_pct);
-    Serial.print(" %  (p-p="); Serial.print(mic_pp);
+    Serial.print(" %  (avg="); Serial.print(mic_avg);
+    Serial.print(" min="); Serial.print(mic_min);
+    Serial.print(" max="); Serial.print(mic_max);
+    Serial.print(" count="); Serial.print(mic_count);
     Serial.println(")");
     Serial.print("  Battery   : "); Serial.print(battery_v, 2); Serial.println(" V");
     Serial.print("  Footsteps : "); Serial.println(fs_count);
