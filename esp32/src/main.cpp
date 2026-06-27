@@ -40,18 +40,19 @@
 #define WIFI_PASS     "12345678"
 
 // FastAPI backend
-#define API_HOST      "bookmarks-enables-primary-scenario.trycloudflare.com"
+#define API_HOST      "gmc-intensive-bouquet-gotta.trycloudflare.com"
 #define API_PATH      "/api/sensors/ingest"
 #define API_KEY       "jierpjijdklghweiorjnv25234mnqwkehijgsd"
 
 // ── NODE IDENTITY ───────────────────────────────────────────────
 // Provision DEVICE_EUI and TREE_ID per physical box (flash once).
 #ifdef NODE_TYPE_MESH
-  #define DEVICE_EUI   "tree-mesh-01"      // change per sensor box
+  #define DEVICE_EUI   "tree-mesh-02"      // change per sensor box
+  #define TREE_ID      "KA-00002"          // tree this sensor monitors
 #else
   #define DEVICE_EUI   "tree-gateway-01"   // the full node / bridge
+  #define TREE_ID      "KA-00001"          // tree the gateway monitors
 #endif
-#define TREE_ID        "KA-00001"          // KA-##### tree this sensor monitors
 
 // ── ESP-NOW PEER (mesh → gateway MAC) ───────────────────────────
 // Both nodes use a fixed locally-administered MAC so the mesh node
@@ -388,6 +389,11 @@ void setup() {
     SensorReadings r;
     r.battery_v = 3.7f;   // fake for demo; production uses ADC voltage divider
     read_sensors(SENSOR_CFG, r);
+
+    Serial.print("[sensor] moisture_raw=");
+    Serial.print(r.moisture_raw);
+    Serial.print(" → moisture_pct=");
+    Serial.println(r.moisture_pct);
 
     char json[256];
     int n = build_json(SENSOR_CFG, r, DEVICE_EUI, TREE_ID,

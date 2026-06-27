@@ -56,6 +56,7 @@ class TreeSummary(BaseModel):
     latitude: float
     longitude: float
     status: str
+    device_eui: str | None = None
     latest_moisture: float | None = None
 
     model_config = {"from_attributes": True}

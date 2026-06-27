@@ -1,7 +1,7 @@
 """Seed the database with demo trees and rewards for hackathon demos.
 
 Usage:
-    python -m vega.seed          # creates tables + seeds data
+    python -m vega.seed          # creates tables + seeds data (skips if data exists)
     python -m vega.seed --reset  # drops all tables first, then seeds
 """
 
@@ -15,14 +15,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from typing import Any
 
+from sqlalchemy import func, select
+
 from vega.config import settings
 from vega.database import Base, async_session, engine, init_db
 from vega.models.reward import Reward
 from vega.models.tree import Tree
 
-# ── Karlsruhe trees ────────────────────────────────────────────
+# ── Karlsruhe demo trees ───────────────────────────────────────
+# IDs use KA-##### format matching the data-import pipeline (normalize.py).
 DEMO_TREES: list[dict[str, Any]] = [
     {
+        "id": "KA-00001",
         "name": "Marktplatz-Linde",
         "species": "Tilia cordata",
         "latitude": 49.0090,
@@ -33,6 +37,7 @@ DEMO_TREES: list[dict[str, Any]] = [
         "device_eui": "tree-01",
     },
     {
+        "id": "KA-00002",
         "name": "Schlossgarten-Eiche",
         "species": "Quercus robur",
         "latitude": 49.0132,
@@ -43,6 +48,7 @@ DEMO_TREES: list[dict[str, Any]] = [
         "device_eui": "tree-02",
     },
     {
+        "id": "KA-00003",
         "name": "Suedstadt-Ahorn",
         "species": "Acer platanoides",
         "latitude": 49.0015,
@@ -53,6 +59,7 @@ DEMO_TREES: list[dict[str, Any]] = [
         "device_eui": "tree-03",
     },
     {
+        "id": "KA-00004",
         "name": "Oststadt-Platane",
         "species": "Platanus × hispanica",
         "latitude": 49.0100,
@@ -63,6 +70,7 @@ DEMO_TREES: list[dict[str, Any]] = [
         "device_eui": "tree-04",
     },
     {
+        "id": "KA-00005",
         "name": "Weststadt-Buche",
         "species": "Fagus sylvatica",
         "latitude": 49.0055,
@@ -71,6 +79,18 @@ DEMO_TREES: list[dict[str, Any]] = [
         "address": "Kaiserallee, 76133 Karlsruhe",
         "nfc_tag_id": "NFC-KA-005",
         "device_eui": "tree-05",
+    },
+    {
+        "id": "KA-00006",
+        "name": "Steamworks Tree",
+        "species": "Tilia cordata",
+        "latitude": 49.0015270,
+        "longitude": 8.3879422,
+        "neighborhood": "Südweststadt",
+        "address": "Roonstraße 23a, 76137 Karlsruhe",
+        "nfc_tag_id": "NFC-KA-006",
+        "device_eui": "tree-06",
+        "notes": "HackXplore 2026 demo tree at Steamworks Karlsruhe",
     },
 ]
 
@@ -135,7 +155,7 @@ async def seed(reset: bool = False) -> None:
     async with async_session() as session:
         # ── Insert trees ──
         tree_count: int | None = (await session.execute(
-            __import__("sqlalchemy").select(__import__("sqlalchemy").func.count(Tree.id))
+            select(func.count(Tree.id))
         )).scalar()
 
         if tree_count and tree_count > 0:
@@ -148,9 +168,7 @@ async def seed(reset: bool = False) -> None:
 
         # ── Insert rewards ──
         reward_count: int | None = (await session.execute(
-            __import__("sqlalchemy").select(
-                __import__("sqlalchemy").func.count(Reward.id)
-            )
+            select(func.count(Reward.id))
         )).scalar()
 
         if reward_count and reward_count > 0:
