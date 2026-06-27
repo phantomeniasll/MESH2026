@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Be Tree — Karte</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css">
+<style>
+  :root {
+    --bg: #0d1117; --card: #161b22; --border: #30363d;
+    --text: #c9d1d9; --muted: #8b949e;
+    --green: #3fb950; --yellow: #d2991d; --red: #f85149; --blue: #58a6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  #map { position: absolute; inset: 0; z-index: 1; }
+
+  /* Nav */
+  .nav {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+    background: rgba(22,27,34,0.95); border-bottom: 1px solid var(--border);
+    padding: 10px 12px; display: flex; align-items: center; gap: 8px;
+    backdrop-filter: blur(8px);
+  }
+  .nav-logo { font-size: 1rem; font-weight: 700; color: var(--green); flex: 1; }
+  .nav-link {
+    color: var(--muted); text-decoration: none; font-size: 0.78rem;
+    padding: 5px 8px; border-radius: 6px; transition: all 0.2s;
+  }
+  .nav-link:hover { color: var(--green); }
+
+  /* Side panel */
+  .panel {
+    position: absolute; top: 49px; right: 0; bottom: 0; z-index: 900;
+    width: 320px; background: rgba(13,17,23,0.95); border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; backdrop-filter: blur(8px);
+    transform: translateX(100%); transition: transform 0.3s ease;
+  }
+  .panel.open { transform: translateX(0); }
+  .panel-header {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-title { font-size: 0.9rem; font-weight: 600; }
+  .panel-close {
+    background: none; border: none; color: var(--muted);
+    font-size: 1.1rem; cursor: pointer; padding: 4px 8px;
+  }
+  .panel-body { flex: 1; overflow-y: auto; padding: 14px; }
+
+  /* Floating action buttons */
+  .fabs {
+    position: absolute; bottom: 20px; left: 12px; z-index: 900;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .fab {
+    background: rgba(22,27,34,0.95); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 14px; font-size: 0.82rem;
+    color: var(--text); cursor: pointer; display: flex; align-items: center;
+    gap: 8px; font-weight: 500; transition: all 0.2s;
+    backdrop-filter: blur(8px); white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .fab:hover { border-color: var(--green); color: var(--green); }
+  .fab.rescue { background: rgba(248,81,73,0.15); border-color: rgba(248,81,73,0.4); color: var(--red); }
+  .fab.rescue:hover { background: rgba(248,81,73,0.25); }
+  .fab.active-rescue { background: rgba(248,81,73,0.25); border-color: var(--red); color: var(--red); }
+
+  .toggle-panel-btn {
+    position: absolute; top: 58px; right: 0; z-index: 950;
+    background: rgba(22,27,34,0.95); border: 1px solid var(--border);
+    border-right: none; border-radius: 8px 0 0 8px;
+    padding: 10px 8px; cursor: pointer; color: var(--muted);
+    font-size: 0.8rem; backdrop-filter: blur(8px);
+    transition: color 0.2s;
+  }
+  .toggle-panel-btn:hover { color: var(--green); }
+
+  /* Tree info card in panel */
+  .tree-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px; margin-bottom: 12px;
+  }
+  .tree-name { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+  .tree-species { font-size: 0.78rem; color: var(--muted); margin-bottom: 10px; font-style: italic; }
+  .tree-meta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  .tree-meta-row { display: flex; gap: 8px; font-size: 0.8rem; align-items: center; }
+  .tree-meta-lbl { color: var(--muted); min-width: 80px; }
+  .status-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 0.72rem; font-weight: 700;
+  }
+  .status-healthy { background: rgba(63,185,80,0.2); color: var(--green); }
+  .status-stressed { background: rgba(210,153,29,0.2); color: var(--yellow); }
+  .status-critical { background: rgba(248,81,73,0.2); color: var(--red); }
+  .status-unknown { background: var(--border); color: var(--muted); }
+
+  .btn-row { display: flex; gap: 8px; }
+  .btn {
+    flex: 1; padding: 9px; border-radius: 8px; border: none;
+    font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-nav { background: var(--blue); color: #000; }
+  .btn-nav:hover { opacity: 0.85; }
+  .btn-fav { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+  .btn-fav:hover { border-color: var(--red); color: var(--red); }
+  .btn-fav.faved { border-color: var(--red); color: var(--red); background: rgba(248,81,73,0.08); }
+
+  /* Rescue list */
+  .rescue-item {
+    background: var(--card); border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 10px; padding: 12px; margin-bottom: 8px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .rescue-item:hover { border-color: var(--red); background: rgba(248,81,73,0.05); }
+  .rescue-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 3px; }
+  .rescue-sub { font-size: 0.75rem; color: var(--muted); }
+  .rescue-dist { font-size: 0.75rem; color: var(--red); font-weight: 600; margin-top: 4px; }
+
+  /* User info */
+  .user-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px; margin-bottom: 12px;
+  }
+  .user-box-name { font-size: 0.9rem; font-weight: 600; }
+  .user-box-pts { font-size: 0.78rem; color: var(--green); margin-top: 2px; }
+
+  .section-title {
+    font-size: 0.72rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 12px 0 8px;
+  }
+
+  /* Leaflet overrides for dark */
+  .leaflet-popup-content-wrapper {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  }
+  .leaflet-popup-tip { background: var(--card); }
+  .leaflet-routing-container {
+    background: rgba(22,27,34,0.95); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    font-size: 0.8rem;
+  }
+  .leaflet-routing-alt h3 { color: var(--green); }
+
+  .loading { text-align: center; color: var(--muted); padding: 20px; font-size: 0.85rem; }
+  .empty { text-align: center; color: var(--muted); padding: 20px; font-size: 0.82rem; }
+
+  @media (max-width: 600px) {
+    .panel { width: 100%; }
+    .fabs { bottom: 14px; }
+  }
+</style>
+</head>
+<body>
+<nav class="nav">
+  <span class="nav-logo">🌳 Be Tree</span>
+  <a href="/profile" class="nav-link">Profil</a>
+  <a href="/impact" class="nav-link">Impact</a>
+</nav>
+
+<div id="map"></div>
+
+<!-- FABs -->
+<div class="fabs">
+  <button class="fab rescue" id="rescueBtn" onclick="toggleRescue()">
+    🆘 Tree Rescue
+  </button>
+  <button class="fab" id="locBtn" onclick="centerOnUser()">
+    📍 Mein Standort
+  </button>
+</div>
+
+<!-- Panel toggle -->
+<button class="toggle-panel-btn" id="panelToggle" onclick="togglePanel()">
+  <span id="panelToggleIcon">◀</span>
+</button>
+
+<!-- Side panel -->
+<div class="panel" id="sidePanel">
+  <div class="panel-header">
+    <span class="panel-title" id="panelTitle">Karte</span>
+    <button class="panel-close" onclick="togglePanel()">✕</button>
+  </div>
+  <div class="panel-body" id="panelBody">
+    <div class="loading">Wähle einen Baum aus der Karte…</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+<script>
+const userId = localStorage.getItem('betree_user_id');
+if (!userId) window.location.href = '/login';
+
+const STATUS_COLOR = { healthy: '#3fb950', stressed: '#d2991d', critical: '#f85149', unknown: '#8b949e' };
+const STATUS_LABEL = { healthy: 'Gesund', stressed: 'Gestresst', critical: 'Kritisch', unknown: 'Unbekannt' };
+
+let map, userMarker, routeControl;
+let trees = [], profile = null, favorites = new Set();
+let rescueMode = false, rescueTrees = [], rescueMarkers = [];
+let selectedTree = null;
+let userLat = null, userLng = null;
+let panelOpen = false;
+let treeMarkers = {};
+
+// ── Init map ──
+map = L.map('map', {
+  center: [49.006, 8.403],
+  zoom: 14,
+  zoomControl: false,
+});
+L.control.zoom({ position: 'topright' }).addTo(map);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap contributors © CARTO',
+  maxZoom: 19,
+}).addTo(map);
+
+// ── User location ──
+function makeUserIcon() {
+  return L.divIcon({
+    html: `<div style="width:16px;height:16px;background:#58a6ff;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(88,166,255,0.3),0 0 0 8px rgba(88,166,255,0.1)"></div>`,
+    className: '', iconSize: [16, 16], iconAnchor: [8, 8],
+  });
+}
+
+function makeTreeIcon(status, highlighted) {
+  const color = STATUS_COLOR[status] || '#8b949e';
+  const size = highlighted ? 18 : 12;
+  const ring = highlighted ? `border:3px solid #fff;box-shadow:0 0 0 3px ${color}` : `border:2px solid rgba(255,255,255,0.4)`;
+  return L.divIcon({
+    html: `<div style="width:${size}px;height:${size}px;background:${color};border-radius:50%;${ring};transition:all 0.2s"></div>`,
+    className: '', iconSize: [size, size], iconAnchor: [size/2, size/2],
+  });
+}
+
+function startGeolocation() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.watchPosition(pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    const ll = [userLat, userLng];
+    if (!userMarker) {
+      userMarker = L.marker(ll, { icon: makeUserIcon(), zIndexOffset: 1000 }).addTo(map);
+      map.setView(ll, 15);
+    } else {
+      userMarker.setLatLng(ll);
+    }
+  }, null, { enableHighAccuracy: true, maximumAge: 5000 });
+}
+
+function centerOnUser() {
+  if (userLat !== null) {
+    map.setView([userLat, userLng], 16);
+  } else {
+    navigator.geolocation && navigator.geolocation.getCurrentPosition(pos => {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      map.setView([userLat, userLng], 16);
+      if (!userMarker) userMarker = L.marker([userLat, userLng], { icon: makeUserIcon(), zIndexOffset: 1000 }).addTo(map);
+    });
+  }
+}
+
+// ── Trees ──
+async function loadTrees() {
+  const res = await fetch('/api/trees');
+  trees = await res.json();
+  trees.forEach(addTreeMarker);
+}
+
+function addTreeMarker(tree) {
+  const marker = L.marker([tree.latitude, tree.longitude], {
+    icon: makeTreeIcon(tree.status, false),
+  });
+  marker.on('click', () => selectTree(tree));
+  marker.addTo(map);
+  treeMarkers[tree.id] = marker;
+}
+
+function selectTree(tree) {
+  selectedTree = tree;
+  openPanel('tree');
+  renderTreePanel(tree);
+}
+
+function renderTreePanel(tree) {
+  const isFav = favorites.has(tree.id);
+  const statusClass = `status-${tree.status}`;
+  document.getElementById('panelTitle').textContent = '🌳 Baumdetails';
+  document.getElementById('panelBody').innerHTML = `
+    <div class="tree-card">
+      <div class="tree-name">${tree.name}</div>
+      ${tree.species ? `<div class="tree-species">${tree.species}</div>` : ''}
+      <div class="tree-meta">
+        <div class="tree-meta-row">
+          <span class="tree-meta-lbl">Status</span>
+          <span class="status-badge ${statusClass}">${STATUS_LABEL[tree.status] || tree.status}</span>
+        </div>
+        ${tree.neighborhood ? `<div class="tree-meta-row"><span class="tree-meta-lbl">Viertel</span><span>${tree.neighborhood}</span></div>` : ''}
+        ${tree.address ? `<div class="tree-meta-row"><span class="tree-meta-lbl">Adresse</span><span style="font-size:0.78rem">${tree.address}</span></div>` : ''}
+        ${tree.id ? `<div class="tree-meta-row"><span class="tree-meta-lbl">ID</span><span style="font-family:monospace;font-size:0.78rem">${tree.id}</span></div>` : ''}
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-nav" onclick="navigateTo(${tree.latitude}, ${tree.longitude})">🗺️ Route</button>
+        <button class="btn btn-fav ${isFav ? 'faved' : ''}" id="favBtn" onclick="toggleFavorite('${tree.id}')">
+          ${isFav ? '❤️ Gespeichert' : '🤍 Favorit'}
+        </button>
+      </div>
+    </div>
+    ${tree.status === 'critical' ? `
+      <div style="background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.3);border-radius:8px;padding:12px;font-size:0.82rem;color:var(--red);margin-top:4px">
+        ⚠️ Dieser Baum braucht dringend Wasser! Bitte stelle eine Bewässerung sicher.
+      </div>` : ''}
+    ${tree.status === 'stressed' ? `
+      <div style="background:rgba(210,153,29,0.1);border:1px solid rgba(210,153,29,0.3);border-radius:8px;padding:12px;font-size:0.82rem;color:var(--yellow);margin-top:4px">
+        ⚡ Dieser Baum ist gestresst und benötigt Aufmerksamkeit.
+      </div>` : ''}
+  `;
+}
+
+// ── Panel ──
+function togglePanel() {
+  panelOpen = !panelOpen;
+  document.getElementById('sidePanel').classList.toggle('open', panelOpen);
+  document.getElementById('panelToggleIcon').textContent = panelOpen ? '▶' : '◀';
+}
+
+function openPanel(type) {
+  if (!panelOpen) togglePanel();
+}
+
+// ── Favorites ──
+async function loadFavorites() {
+  if (!userId) return;
+  const res = await fetch(`/api/citizens/${userId}/favorites`);
+  const ids = await res.json();
+  favorites = new Set(ids);
+}
+
+async function toggleFavorite(treeId) {
+  const isFav = favorites.has(treeId);
+  if (isFav) {
+    await fetch(`/api/citizens/${userId}/favorites/${treeId}`, { method: 'DELETE' });
+    favorites.delete(treeId);
+  } else {
+    await fetch(`/api/citizens/${userId}/favorites/${treeId}`, { method: 'POST' });
+    favorites.add(treeId);
+  }
+  if (selectedTree && selectedTree.id === treeId) {
+    const btn = document.getElementById('favBtn');
+    if (btn) {
+      btn.className = `btn btn-fav ${favorites.has(treeId) ? 'faved' : ''}`;
+      btn.textContent = favorites.has(treeId) ? '❤️ Gespeichert' : '🤍 Favorit';
+    }
+  }
+}
+
+// ── Navigation / Routing ──
+function navigateTo(lat, lng) {
+  if (routeControl) {
+    map.removeControl(routeControl);
+    routeControl = null;
+  }
+
+  const startLat = userLat !== null ? userLat : 49.006;
+  const startLng = userLng !== null ? userLng : 8.403;
+
+  routeControl = L.Routing.control({
+    waypoints: [
+      L.latLng(startLat, startLng),
+      L.latLng(lat, lng),
+    ],
+    router: L.Routing.osrmv1({
+      serviceUrl: 'https://router.project-osrm.org/route/v1',
+      profile: 'foot',
+    }),
+    lineOptions: {
+      styles: [{ color: '#58a6ff', weight: 4, opacity: 0.8 }],
+      extendToWaypoints: true,
+    },
+    show: false,
+    addWaypoints: false,
+    routeWhileDragging: false,
+    fitSelectedRoutes: true,
+    showAlternatives: false,
+    createMarker: () => null,
+  }).addTo(map);
+
+  // Show a simple fallback line while routing loads
+  const fallbackLine = L.polyline(
+    [[startLat, startLng], [lat, lng]],
+    { color: '#58a6ff', weight: 3, opacity: 0.5, dashArray: '6 8' }
+  );
+
+  routeControl.on('routesfound', () => {
+    map.removeLayer(fallbackLine);
+  });
+  routeControl.on('routingerror', () => {
+    fallbackLine.addTo(map);
+  });
+  fallbackLine.addTo(map);
+
+  map.fitBounds([[startLat, startLng], [lat, lng]], { padding: [60, 60] });
+}
+
+// ── Tree Rescue ──
+async function toggleRescue() {
+  rescueMode = !rescueMode;
+  const btn = document.getElementById('rescueBtn');
+
+  if (!rescueMode) {
+    btn.className = 'fab rescue';
+    btn.textContent = '🆘 Tree Rescue';
+    clearRescueHighlights();
+    if (panelOpen && document.getElementById('panelTitle').textContent === '🆘 Tree Rescue') {
+      togglePanel();
+    }
+    return;
+  }
+
+  btn.className = 'fab active-rescue';
+  btn.textContent = '✕ Rescue beenden';
+
+  const lat = userLat !== null ? userLat : 49.006;
+  const lng = userLng !== null ? userLng : 8.403;
+
+  openPanel('rescue');
+  document.getElementById('panelTitle').textContent = '🆘 Tree Rescue';
+  document.getElementById('panelBody').innerHTML = '<div class="loading">Suche kritische Bäume…</div>';
+
+  const res = await fetch(`/api/trees/rescue?lat=${lat}&lng=${lng}&limit=8`);
+  rescueTrees = await res.json();
+
+  highlightRescueTrees(rescueTrees);
+  renderRescuePanel(rescueTrees, lat, lng);
+}
+
+function highlightRescueTrees(trees) {
+  clearRescueHighlights();
+  trees.forEach(t => {
+    const marker = treeMarkers[t.id];
+    if (marker) {
+      marker.setIcon(makeTreeIcon(t.status, true));
+      marker.setZIndexOffset(500);
+      rescueMarkers.push(t.id);
+    }
+  });
+}
+
+function clearRescueHighlights() {
+  rescueMarkers.forEach(id => {
+    const tree = trees.find(t => t.id === id);
+    const marker = treeMarkers[id];
+    if (marker && tree) {
+      marker.setIcon(makeTreeIcon(tree.status, false));
+      marker.setZIndexOffset(0);
+    }
+  });
+  rescueMarkers = [];
+  rescueTrees = [];
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+function renderRescuePanel(trees, lat, lng) {
+  if (!trees.length) {
+    document.getElementById('panelBody').innerHTML = `
+      <div class="empty">✅ Keine kritischen Bäume in der Nähe.<br>Alle Bäume sehen gut aus!</div>`;
+    return;
+  }
+
+  const html = trees.map(t => {
+    const dist = haversineKm(lat, lng, t.latitude, t.longitude);
+    const distTxt = dist < 1 ? `${Math.round(dist*1000)} m` : `${dist.toFixed(1)} km`;
+    const urgency = t.status === 'critical' ? '🔴 Kritisch' : t.status === 'stressed' ? '🟡 Gestresst' : '⚪';
+    return `
+      <div class="rescue-item" onclick="selectRescueTree('${t.id}', ${t.latitude}, ${t.longitude})">
+        <div class="rescue-name">${t.name}</div>
+        <div class="rescue-sub">${t.species || ''} ${t.neighborhood ? '· ' + t.neighborhood : ''}</div>
+        <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+          <span style="font-size:0.72rem;font-weight:700">${urgency}</span>
+          <span class="rescue-dist">📍 ${distTxt} entfernt</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('panelBody').innerHTML = `
+    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:10px">
+      ${trees.length} Bäume brauchen deine Hilfe — tippe auf einen Baum für die Route.
+    </div>
+    ${html}
+  `;
+}
+
+function selectRescueTree(treeId, lat, lng) {
+  const tree = trees.find(t => t.id === treeId);
+  if (tree) {
+    selectTree(tree);
+    navigateTo(lat, lng);
+    map.setView([lat, lng], 16);
+  }
+}
+
+// ── Profile ──
+async function loadProfile() {
+  const res = await fetch(`/api/citizens/profile/${userId}`);
+  if (res.ok) {
+    profile = await res.json();
+    const name = localStorage.getItem('betree_display_name') || profile.display_name;
+    // Show user chip on panel default state
+    if (!panelOpen) {
+      document.getElementById('panelBody').innerHTML = `
+        <div class="user-box">
+          <div class="user-box-name">👤 ${profile.display_name}</div>
+          <div class="user-box-pts">⭐ ${profile.total_points.toLocaleString('de-DE')} Punkte · Level ${profile.level}</div>
+        </div>
+        <div class="section-title">Kartenlegende</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:0.8rem">
+          <div style="display:flex;gap:8px;align-items:center"><div style="width:12px;height:12px;background:#3fb950;border-radius:50%"></div> Gesund</div>
+          <div style="display:flex;gap:8px;align-items:center"><div style="width:12px;height:12px;background:#d2991d;border-radius:50%"></div> Gestresst</div>
+          <div style="display:flex;gap:8px;align-items:center"><div style="width:12px;height:12px;background:#f85149;border-radius:50%"></div> Kritisch</div>
+          <div style="display:flex;gap:8px;align-items:center"><div style="width:12px;height:12px;background:#8b949e;border-radius:50%"></div> Unbekannt</div>
+          <div style="display:flex;gap:8px;align-items:center"><div style="width:16px;height:16px;background:#58a6ff;border-radius:50%;border:2px solid #fff"></div> Dein Standort</div>
+        </div>
+        <div class="section-title" style="margin-top:16px">Tipps</div>
+        <div style="font-size:0.78rem;color:var(--muted);line-height:1.5">
+          Tippe auf einen Baum, um Details zu sehen.<br>
+          🆘 <strong>Tree Rescue</strong> zeigt die nächsten kritischen Bäume.<br>
+          📍 <strong>Mein Standort</strong> zentriert die Karte auf dich.
+        </div>
+      `;
+    }
+  }
+}
+
+// ── Boot ──
+async function init() {
+  startGeolocation();
+  await Promise.all([loadTrees(), loadFavorites(), loadProfile()]);
+}
+
+init();
+</script>
+</body>
+</html>

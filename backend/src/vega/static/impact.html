@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Be Tree — Mein Impact</title>
+<style>
+  :root {
+    --bg: #0d1117; --card: #161b22; --border: #30363d;
+    --text: #c9d1d9; --muted: #8b949e;
+    --green: #3fb950; --yellow: #d2991d; --red: #f85149; --blue: #58a6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100dvh;
+  }
+  .nav {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 12px 16px; display: flex; align-items: center;
+    justify-content: space-between; position: sticky; top: 0; z-index: 10;
+  }
+  .nav-logo { font-size: 1.2rem; font-weight: 700; color: var(--green); }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-link {
+    color: var(--muted); text-decoration: none; font-size: 0.82rem;
+    padding: 6px 10px; border-radius: 6px; transition: all 0.2s;
+  }
+  .nav-link:hover, .nav-link.active { background: rgba(63,185,80,0.1); color: var(--green); }
+  .nav-logout {
+    color: var(--muted); background: none; border: none;
+    font-size: 0.82rem; cursor: pointer; padding: 6px 10px;
+    border-radius: 6px;
+  }
+  .nav-logout:hover { color: var(--red); }
+
+  .container { max-width: 640px; margin: 0 auto; padding: 20px 16px; }
+
+  .page-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+  .page-sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+
+  /* Tab bar */
+  .tabs {
+    display: flex; gap: 4px; margin-bottom: 20px;
+    overflow-x: auto; padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 8px; padding: 8px 14px; font-size: 0.82rem;
+    cursor: pointer; white-space: nowrap; transition: all 0.2s; flex-shrink: 0;
+  }
+  .tab.active { background: rgba(63,185,80,0.15); border-color: var(--green); color: var(--green); font-weight: 600; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Cards */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px; margin-bottom: 12px;
+  }
+  .card-title {
+    font-size: 0.75rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 14px;
+  }
+
+  /* Big number */
+  .big-number {
+    font-size: 3rem; font-weight: 800; color: var(--green); line-height: 1;
+    margin-bottom: 4px;
+  }
+  .big-label { color: var(--muted); font-size: 0.85rem; }
+
+  /* Stats grid */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .stat-mini {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px; text-align: center;
+  }
+  .stat-mini-val { font-size: 1.5rem; font-weight: 700; color: var(--text); }
+  .stat-mini-lbl { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
+
+  /* Progress bar */
+  .progress-wrap { margin-top: 8px; }
+  .progress-header {
+    display: flex; justify-content: space-between; font-size: 0.78rem;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .progress-bar {
+    height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 4px; transition: width 0.8s ease;
+  }
+  .progress-green { background: linear-gradient(90deg, #3fb950, #7ee787); }
+  .progress-yellow { background: linear-gradient(90deg, #d2991d, #f0c040); }
+  .progress-blue { background: linear-gradient(90deg, #58a6ff, #a0d2ff); }
+
+  /* Streak calendar */
+  .streak-info {
+    display: flex; gap: 12px; margin-bottom: 16px;
+  }
+  .streak-box {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px; text-align: center;
+  }
+  .streak-val { font-size: 2rem; font-weight: 800; }
+  .streak-val.fire { color: var(--yellow); }
+  .streak-val.green { color: var(--green); }
+  .streak-lbl { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .cal-row { display: flex; gap: 4px; flex-wrap: wrap; }
+  .cal-day {
+    width: 24px; height: 24px; border-radius: 4px; background: var(--border);
+    position: relative;
+  }
+  .cal-day.active { background: var(--green); }
+  .cal-day.today { border: 2px solid var(--blue); }
+
+  /* Badges */
+  .badges-list { display: flex; flex-direction: column; gap: 8px; }
+  .badge-row {
+    display: flex; align-items: center; gap: 12px; padding: 10px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .badge-row.earned { border-color: rgba(63,185,80,0.3); background: rgba(63,185,80,0.05); }
+  .badge-emoji { font-size: 1.5rem; flex-shrink: 0; }
+  .badge-text { flex: 1; }
+  .badge-name { font-size: 0.9rem; font-weight: 600; }
+  .badge-desc { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .badge-status {
+    font-size: 0.7rem; padding: 3px 8px; border-radius: 10px;
+    font-weight: 600; flex-shrink: 0;
+  }
+  .badge-status.earned { background: rgba(63,185,80,0.2); color: var(--green); }
+  .badge-status.locked { background: var(--border); color: var(--muted); }
+
+  /* Leaderboard */
+  .lb-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-row.me { background: rgba(63,185,80,0.05); margin: 0 -6px; padding: 10px 6px; border-radius: 8px; }
+  .lb-rank { width: 28px; text-align: center; font-size: 0.9rem; font-weight: 700; color: var(--muted); flex-shrink: 0; }
+  .lb-rank.top1 { color: #ffd700; }
+  .lb-rank.top2 { color: #c0c0c0; }
+  .lb-rank.top3 { color: #cd7f32; }
+  .lb-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #3fb950, #1a6e28);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .lb-info { flex: 1; min-width: 0; }
+  .lb-name { font-size: 0.9rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb-neighborhood { font-size: 0.72rem; color: var(--muted); }
+  .lb-pts { text-align: right; }
+  .lb-pts-val { font-size: 0.9rem; font-weight: 700; color: var(--green); }
+  .lb-pts-lbl { font-size: 0.7rem; color: var(--muted); }
+  .lb-level { font-size: 0.72rem; padding: 2px 7px; background: rgba(63,185,80,0.15); color: var(--green); border-radius: 10px; margin-top: 2px; display: inline-block; }
+
+  /* Carbon */
+  .carbon-hero {
+    text-align: center; padding: 20px 0;
+  }
+  .carbon-num { font-size: 4rem; font-weight: 800; color: var(--green); line-height: 1; }
+  .carbon-unit { font-size: 1rem; color: var(--muted); margin-top: 4px; }
+
+  .impact-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .impact-row:last-child { border-bottom: none; }
+  .impact-icon { font-size: 1.5rem; flex-shrink: 0; }
+  .impact-info { flex: 1; }
+  .impact-label { font-size: 0.85rem; font-weight: 500; }
+  .impact-desc { font-size: 0.75rem; color: var(--muted); }
+  .impact-val { font-size: 1rem; font-weight: 700; color: var(--green); }
+
+  .empty { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 20px 0; }
+  .loading { text-align: center; color: var(--muted); padding: 40px; }
+</style>
+</head>
+<body>
+<nav class="nav">
+  <span class="nav-logo">🌳 Be Tree</span>
+  <div class="nav-links">
+    <a href="/profile" class="nav-link">Profil</a>
+    <a href="/impact" class="nav-link active">Impact</a>
+    <a href="/citizen-map" class="nav-link">Karte</a>
+    <button class="nav-logout" onclick="logout()">Abmelden</button>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="page-title">📊 Mein Impact</div>
+  <div class="page-sub">Dein Beitrag zur Stadtbegrünung Karlsruhe</div>
+
+  <div class="tabs" id="tabBar">
+    <button class="tab" onclick="switchTab('overview')">🌱 Überblick</button>
+    <button class="tab" onclick="switchTab('streak')">🔥 Serie</button>
+    <button class="tab" onclick="switchTab('badges')">🏅 Abzeichen</button>
+    <button class="tab" onclick="switchTab('leaderboard')">🏆 Rangliste</button>
+    <button class="tab" onclick="switchTab('carbon')">🌍 Umwelt</button>
+  </div>
+
+  <div id="tab-overview" class="tab-panel">
+    <div id="overview-content"><div class="loading">Lade…</div></div>
+  </div>
+
+  <div id="tab-streak" class="tab-panel">
+    <div id="streak-content"><div class="loading">Lade…</div></div>
+  </div>
+
+  <div id="tab-badges" class="tab-panel">
+    <div id="badges-content"><div class="loading">Lade…</div></div>
+  </div>
+
+  <div id="tab-leaderboard" class="tab-panel">
+    <div id="leaderboard-content"><div class="loading">Lade…</div></div>
+  </div>
+
+  <div id="tab-carbon" class="tab-panel">
+    <div id="carbon-content"><div class="loading">Lade…</div></div>
+  </div>
+</div>
+
+<script>
+const BADGE_META = {
+  first_drop:        { name: 'First Drop', icon: '💧', desc: 'Erster Baum gegossen' },
+  early_bird:        { name: 'Early Bird', icon: '🌅', desc: 'Vor 7 Uhr gegossen' },
+  heat_wave_hero:    { name: 'Hitzewellen-Held', icon: '🦸', desc: '3 Tage Hitze in Folge' },
+  sniper:            { name: 'Sniper', icon: '🎯', desc: 'Dürrendstem Baum geholfen' },
+  neighborhood_king: { name: 'Nachbarschaftskönig', icon: '👑', desc: 'Spitze im Viertel' },
+  centurion:         { name: 'Centurion', icon: '💯', desc: '100 Bewässerungen' },
+  night_owl:         { name: 'Nachteule', icon: '🦉', desc: 'Nach 22 Uhr gegossen' },
+  paparazzo:         { name: 'Paparazzo', icon: '📸', desc: '10 Fotos hochgeladen' },
+  recruiter:         { name: 'Recruiter', icon: '🤝', desc: 'Freund eingeladen' },
+};
+
+let userId = localStorage.getItem('betree_user_id');
+if (!userId) window.location.href = '/login';
+
+function logout() {
+  ['betree_user_id','betree_username','betree_display_name'].forEach(k => localStorage.removeItem(k));
+  window.location.href = '/login';
+}
+
+let profile = null, gamification = null, leaderboard = [], carbon = null;
+const loadedTabs = new Set();
+
+const TAB_ORDER = ['overview','streak','badges','leaderboard','carbon'];
+
+function switchTab(name) {
+  TAB_ORDER.forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === name);
+  });
+  document.querySelectorAll('.tab').forEach((btn, i) => {
+    btn.classList.toggle('active', TAB_ORDER[i] === name);
+  });
+  localStorage.setItem('betree_impact_tab', name);
+  if (!loadedTabs.has(name)) {
+    loadedTabs.add(name);
+    renderTab(name);
+  }
+}
+
+async function renderTab(name) {
+  if (!profile) return;
+  switch (name) {
+    case 'overview': renderOverview(); break;
+    case 'streak': renderStreak(); break;
+    case 'badges': renderBadges(); break;
+    case 'leaderboard': await renderLeaderboard(); break;
+    case 'carbon': await renderCarbon(); break;
+  }
+}
+
+function renderOverview() {
+  const pts = profile.total_points;
+  const lvl = profile.level;
+  const prevThresh = ((lvl-1)*(lvl-1))*100;
+  const nextThresh = (lvl*lvl)*100;
+  const ptsInLevel = pts - prevThresh;
+  const ptsNeeded = nextThresh - prevThresh;
+  const pct = Math.min(100, Math.round((ptsInLevel/ptsNeeded)*100));
+
+  document.getElementById('overview-content').innerHTML = `
+    <div class="card">
+      <div class="card-title">Punkte gesamt</div>
+      <div class="big-number">${pts.toLocaleString('de-DE')}</div>
+      <div class="big-label">Grünpunkte gesammelt</div>
+      <div class="progress-wrap" style="margin-top:16px">
+        <div class="progress-header">
+          <span>Level ${lvl}</span>
+          <span>${ptsInLevel} / ${ptsNeeded} XP → Level ${lvl+1}</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill progress-green" style="width:${pct}%"></div></div>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-mini">
+        <div class="stat-mini-val">💧 ${profile.waterings_count}</div>
+        <div class="stat-mini-lbl">Bewässerungen</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-val">🌳 ${profile.trees_adopted}</div>
+        <div class="stat-mini-lbl">Adoptiert</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-val">🏅 ${profile.badges.length}</div>
+        <div class="stat-mini-lbl">Abzeichen</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-val">❤️ ${(profile.favorite_trees||[]).length}</div>
+        <div class="stat-mini-lbl">Favoriten</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Dein Fortschritt</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <div class="progress-header"><span>🔥 Aktuelle Serie</span><span>${profile.current_streak} Tage</span></div>
+          <div class="progress-bar"><div class="progress-fill progress-yellow" style="width:${Math.min(100, profile.current_streak/30*100)}%"></div></div>
+        </div>
+        <div>
+          <div class="progress-header"><span>💧 Bewässerungen (Ziel: 50)</span><span>${profile.waterings_count}/50</span></div>
+          <div class="progress-bar"><div class="progress-fill progress-blue" style="width:${Math.min(100, profile.waterings_count/50*100)}%"></div></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderStreak() {
+  const streak = profile.current_streak;
+  const longest = profile.longest_streak;
+  const today = new Date();
+
+  // Generate last 28 days as calendar
+  const days = [];
+  for (let i = 27; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const isActive = i < streak;
+    const isToday = i === 0;
+    days.push({ isActive, isToday, d });
+  }
+
+  const calHtml = days.map(d =>
+    `<div class="cal-day ${d.isActive ? 'active' : ''} ${d.isToday ? 'today' : ''}" title="${d.d.toLocaleDateString('de-DE')}"></div>`
+  ).join('');
+
+  document.getElementById('streak-content').innerHTML = `
+    <div class="card">
+      <div class="card-title">Aktuelle Serie</div>
+      <div class="streak-info">
+        <div class="streak-box">
+          <div class="streak-val fire">${streak}</div>
+          <div class="streak-lbl">Aktuelle Tage</div>
+        </div>
+        <div class="streak-box">
+          <div class="streak-val green">${longest}</div>
+          <div class="streak-lbl">Rekord</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Letzte 28 Tage</div>
+      <div class="cal-row">${calHtml}</div>
+      <div style="display:flex;gap:12px;margin-top:10px;font-size:0.75rem;color:var(--muted)">
+        <span><span style="display:inline-block;width:10px;height:10px;background:var(--green);border-radius:2px;margin-right:4px"></span>Aktiv</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:var(--border);border-radius:2px;margin-right:4px"></span>Inaktiv</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Serie-Boni</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${[
+          { days: 3, label: '3-Tage-Serie', bonus: '+10% Punkte', active: streak >= 3 },
+          { days: 7, label: '7-Tage-Serie', bonus: '+25% Punkte', active: streak >= 7 },
+          { days: 14, label: '2-Wochen-Serie', bonus: '+50% Punkte', active: streak >= 14 },
+          { days: 30, label: '30-Tage-Serie', bonus: '+100% Punkte', active: streak >= 30 },
+        ].map(b => `
+          <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg);border:1px solid ${b.active ? 'rgba(63,185,80,0.3)' : 'var(--border)'};border-radius:8px">
+            <span style="font-size:1.2rem">${b.active ? '✅' : '🔒'}</span>
+            <div style="flex:1">
+              <div style="font-size:0.85rem;font-weight:500">${b.label}</div>
+              <div style="font-size:0.75rem;color:var(--muted)">${b.bonus}</div>
+            </div>
+            <div style="font-size:0.75rem;color:${b.active ? 'var(--green)' : 'var(--muted)'}">${b.active ? 'Aktiv' : b.days + ' Tage'}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderBadges() {
+  const earned = new Set(profile.badges);
+  const html = Object.entries(BADGE_META).map(([id, m]) => {
+    const isEarned = earned.has(id);
+    return `
+      <div class="badge-row ${isEarned ? 'earned' : ''}">
+        <div class="badge-emoji" style="opacity:${isEarned ? 1 : 0.35}">${m.icon}</div>
+        <div class="badge-text">
+          <div class="badge-name" style="color:${isEarned ? 'var(--text)' : 'var(--muted)'}">${m.name}</div>
+          <div class="badge-desc">${m.desc}</div>
+        </div>
+        <div class="badge-status ${isEarned ? 'earned' : 'locked'}">${isEarned ? 'Verdient' : 'Gesperrt'}</div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('badges-content').innerHTML = `
+    <div class="card">
+      <div class="card-title">${profile.badges.length} / ${Object.keys(BADGE_META).length} Abzeichen verdient</div>
+      <div class="progress-bar" style="margin-bottom:16px">
+        <div class="progress-fill progress-green" style="width:${Math.round(profile.badges.length/Object.keys(BADGE_META).length*100)}%"></div>
+      </div>
+      <div class="badges-list">${html}</div>
+    </div>
+  `;
+}
+
+async function renderLeaderboard() {
+  const el = document.getElementById('leaderboard-content');
+  if (!leaderboard.length) {
+    const res = await fetch('/api/citizens/leaderboard?limit=20');
+    leaderboard = await res.json();
+  }
+
+  const myRankEntry = leaderboard.find(e => e.user_id === userId);
+  const html = leaderboard.map(e => {
+    const rankClass = e.rank === 1 ? 'top1' : e.rank === 2 ? 'top2' : e.rank === 3 ? 'top3' : '';
+    const rankIcon = e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : e.rank;
+    const ini = e.display_name.split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase();
+    const isMe = e.user_id === userId;
+    return `
+      <div class="lb-row ${isMe ? 'me' : ''}">
+        <div class="lb-rank ${rankClass}">${rankIcon}</div>
+        <div class="lb-avatar">${ini}</div>
+        <div class="lb-info">
+          <div class="lb-name">${e.display_name}${isMe ? ' 👈' : ''}</div>
+          <div class="lb-neighborhood">${e.neighborhood || 'Karlsruhe'}</div>
+        </div>
+        <div class="lb-pts">
+          <div class="lb-pts-val">${e.total_points.toLocaleString('de-DE')}</div>
+          <div class="lb-pts-lbl">Punkte</div>
+          <div><span class="lb-level">Lv ${e.level}</span></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-title">Top Baumhüter Karlsruhe</div>
+      ${html}
+      ${!myRankEntry ? '<div class="empty" style="margin-top:12px">Du bist noch nicht in der Rangliste — gieße Bäume!</div>' : ''}
+    </div>
+  `;
+}
+
+async function renderCarbon() {
+  const el = document.getElementById('carbon-content');
+  if (!carbon) {
+    const res = await fetch('/api/dashboard/carbon');
+    carbon = await res.json();
+  }
+
+  const liters = Math.round(profile.waterings_count * 8);
+  const co2 = (liters * 0.001).toFixed(2);
+  const trees = profile.waterings_count;
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-title">Dein persönlicher Beitrag</div>
+      <div class="carbon-hero">
+        <div class="carbon-num">${liters}</div>
+        <div class="carbon-unit">Liter Wasser gespendet</div>
+      </div>
+      <div class="impact-row">
+        <div class="impact-icon">💧</div>
+        <div class="impact-info">
+          <div class="impact-label">Wasser gespendet</div>
+          <div class="impact-desc">Geschätzt ca. 8L pro Bewässerung</div>
+        </div>
+        <div class="impact-val">${liters}L</div>
+      </div>
+      <div class="impact-row">
+        <div class="impact-icon">🌫️</div>
+        <div class="impact-info">
+          <div class="impact-label">CO₂ vermieden</div>
+          <div class="impact-desc">Durch Baumsterben-Prävention</div>
+        </div>
+        <div class="impact-val">~${co2} kg</div>
+      </div>
+      <div class="impact-row">
+        <div class="impact-icon">🌳</div>
+        <div class="impact-info">
+          <div class="impact-label">Bäume gerettet</div>
+          <div class="impact-desc">Unterstützte Pflegeaktionen</div>
+        </div>
+        <div class="impact-val">${trees}</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Stadtweiter Impact</div>
+      <div class="impact-row">
+        <div class="impact-icon">💧</div>
+        <div class="impact-info">
+          <div class="impact-label">Gesamte Bewässerungen</div>
+        </div>
+        <div class="impact-val">${carbon.total_waterings.toLocaleString('de-DE')}</div>
+      </div>
+      <div class="impact-row">
+        <div class="impact-icon">🪣</div>
+        <div class="impact-info">
+          <div class="impact-label">Wasser gesamt (Liter)</div>
+        </div>
+        <div class="impact-val">${Math.round(carbon.total_liters_carried).toLocaleString('de-DE')}</div>
+      </div>
+      <div class="impact-row">
+        <div class="impact-icon">🌍</div>
+        <div class="impact-info">
+          <div class="impact-label">CO₂-Ersparnis (gesamt)</div>
+        </div>
+        <div class="impact-val">${carbon.estimated_co2_offset_kg} kg</div>
+      </div>
+    </div>
+  `;
+}
+
+async function init() {
+  const res = await fetch(`/api/citizens/profile/${userId}`);
+  if (res.status === 404) { window.location.href = '/login'; return; }
+  profile = await res.json();
+
+  const savedTab = localStorage.getItem('betree_impact_tab') || 'overview';
+  switchTab(savedTab);
+}
+
+init();
+</script>
+</body>
+</html>

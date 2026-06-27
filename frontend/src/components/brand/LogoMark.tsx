@@ -1,0 +1,27 @@
+interface Props {
+  size?: number;
+  className?: string;
+}
+
+export function LogoMark({ size = 32, className = "" }: Props) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 512 512"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M99.9384 110.694C100.016 104.507 105.198 99.544 111.366 100.033C232.683 109.652 261.577 199.801 248.108 335.86C247.512 341.879 242.015 346.247 236.021 345.438C95.5155 326.477 98.2649 245.031 99.9384 110.694Z"
+        fill="currentColor"
+      />
+      <path
+        d="M273.115 412.35C267.376 412.656 262.577 408.145 262.208 402.411C252.783 256.048 289.847 180.575 398.076 176.465C403.53 176.258 408.216 180.379 408.908 185.793C429.715 348.481 355.869 407.933 273.115 412.35Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}

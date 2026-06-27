@@ -1,0 +1,14 @@
+{"type":"FeatureCollection","features":[
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[8.400,49.008],[8.403,49.008],[8.403,49.010],[8.400,49.010],[8.400,49.008]]]},"properties":{"intensity":0.85,"label":"Marktplatz"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[8.408,49.003],[8.411,49.003],[8.411,49.005],[8.408,49.005],[8.408,49.003]]]},"properties":{"intensity":0.72,"label":"Parkhaus Östliche Kaiserstr."}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[8.420,49.008],[8.423,49.008],[8.423,49.010],[8.420,49.010],[8.420,49.008]]]},"properties":{"intensity":0.67,"label":"Oststadt Gewerbe"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[8.390,49.012],[8.393,49.012],[8.393,49.014],[8.390,49.014],[8.390,49.012]]]},"properties":{"intensity":0.58,"label":"Mühlburg Zentrum"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[8.435,49.000],[8.438,49.000],[8.438,49.002],[8.435,49.002],[8.435,49.000]]]},"properties":{"intensity":0.79,"label":"Industriegebiet Durlach"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[8.402,48.997],[8.405,48.997],[8.405,48.999],[8.402,48.999],[8.402,48.997]]]},"properties":{"intensity":0.63,"label":"Südstadt Parkplatz"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[8.375,49.005],[8.378,49.005],[8.378,49.007],[8.375,49.007],[8.375,49.005]]]},"properties":{"intensity":0.55,"label":"Weststadt Logistik"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[8.414,49.015],[8.417,49.015],[8.417,49.017],[8.414,49.017],[8.414,49.015]]]},"properties":{"intensity":0.48,"label":"Neureut Gewerbepark"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[8.396,49.020],[8.399,49.020],[8.399,49.022],[8.396,49.022],[8.396,49.020]]]},"properties":{"intensity":0.43,"label":"Waldstadt Rand"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[8.443,49.010],[8.446,49.010],[8.446,49.012],[8.443,49.012],[8.443,49.010]]]},"properties":{"intensity":0.74,"label":"Durlach Autobahn"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[8.405,49.006],[8.408,49.006],[8.408,49.008],[8.405,49.008],[8.405,49.006]]]},"properties":{"intensity":0.88,"label":"Karlsruhe Bahnhof"}},
+{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[8.382,48.998],[8.385,48.998],[8.385,49.000],[8.382,49.000],[8.382,48.998]]]},"properties":{"intensity":0.51,"label":"Rheinhafen"}}
+]}

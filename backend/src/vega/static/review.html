@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VEGA — Sensor Data Review</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --text:#c9d1d9; --muted:#8b949e;
+          --green:#3fb950; --yellow:#d2991d; --red:#f85149; --blue:#58a6ff; --purple:#bc8cff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg);
+         color:var(--text); line-height:1.5; }
+  .container { max-width:1400px; margin:0 auto; padding:24px; }
+  h1 { font-size:1.5rem; margin-bottom:4px; }
+  .subtitle { color:var(--muted); font-size:0.85rem; margin-bottom:24px; }
+
+  .controls { display:flex; gap:16px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
+  .tree-pick { display:flex; flex-direction:column; gap:4px; }
+  .tree-pick label { font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+  .tree-pick select { min-width:260px; }
+  select, button { background:var(--card); color:var(--text); border:1px solid var(--border);
+                   padding:8px 16px; border-radius:6px; font-size:0.9rem; cursor:pointer; }
+  button { background:var(--blue); border-color:var(--blue); color:#fff; font-weight:600; }
+  button:hover { opacity:0.85; }
+  .live-row { display:flex; align-items:center; gap:6px; margin-left:8px; }
+
+  .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+  .chart-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px; }
+  .chart-card h3 { font-size:0.8rem; color:var(--muted); margin-bottom:8px; text-transform:uppercase;
+                   letter-spacing:0.05em; }
+  .chart-card canvas { max-height:180px; }
+  @media (max-width:900px) { .charts-grid { grid-template-columns:1fr; } }
+
+  .legend { display:flex; gap:24px; flex-wrap:wrap; margin-bottom:20px; padding:16px;
+            background:var(--card); border:1px solid var(--border); border-radius:8px; }
+  .legend-item { display:flex; align-items:center; gap:8px; font-size:0.8rem; }
+  .legend-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:600; }
+  .badge-ok { background:var(--green); color:#000; }
+  .badge-warn { background:var(--yellow); color:#000; }
+  .badge-bad { background:var(--red); color:#fff; }
+  .badge-null { background:var(--border); color:var(--muted); }
+
+  .info-box { background:rgba(88,166,255,0.08); border:1px solid rgba(88,166,255,0.2);
+              border-radius:8px; padding:16px; margin-bottom:24px; }
+  .info-box h3 { color:var(--blue); font-size:0.9rem; margin-bottom:8px; }
+  .info-box p { font-size:0.82rem; color:var(--muted); margin-bottom:4px; }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--border);
+          border-radius:8px; overflow:hidden; }
+  th, td { padding:10px 14px; text-align:left; border-bottom:1px solid var(--border); font-size:0.85rem; }
+  th { background:var(--border); color:var(--muted); font-weight:600; text-transform:uppercase;
+       font-size:0.75rem; letter-spacing:0.05em; }
+  tr:hover { background:rgba(255,255,255,0.03); }
+  .anomaly-row td { background:rgba(248,81,73,0.08); }
+  .tree-a-row td { border-left:3px solid var(--blue); }
+  .tree-b-row td { border-left:3px solid var(--purple); }
+  .row-label { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+               padding:1px 6px; border-radius:3px; }
+  .row-label-a { background:var(--blue); color:#000; }
+  .row-label-b { background:var(--purple); color:#fff; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🌳 VEGA Sensor Review</h1>
+  <p class="subtitle">Compare two trees — each sensor metric in its own chart, rolling window (shift-left, no chart destroy)</p>
+
+  <div class="controls">
+    <div class="tree-pick">
+      <label>Tree A <span class="row-label row-label-a">A</span></label>
+      <select id="treeASelect"><option value="">— loading —</option></select>
+    </div>
+    <div class="tree-pick">
+      <label>Tree B <span class="row-label row-label-b">B</span></label>
+      <select id="treeBSelect"><option value="">(none)</option></select>
+    </div>
+    <div class="tree-pick">
+      <label>Manual tree ID</label>
+      <input id="manualId" placeholder="KA-00001" style="background:var(--card);color:var(--text);border:1px solid var(--border);padding:8px 12px;border-radius:6px;font-size:0.9rem;min-width:140px">
+    </div>
+    <div class="live-row">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="autoRefresh" checked onchange="toggleAuto()"> Live
+      </label>
+      <span id="refreshStatus" style="color:var(--muted);font-size:0.8rem"></span>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="legend-item"><span class="legend-dot" style="background:var(--green)"></span> Normal</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span> Suspicious</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span> Fault / Error Code</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--border)"></span> No data</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--blue)"></span> Tree A</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--purple)"></span> Tree B</span>
+  </div>
+
+  <div class="info-box" id="faultInfo" style="display:none">
+    <h3>⚠️ Sensor Fault Codes Explained</h3>
+    <p><code>-99 °C</code> / <code>-1 %</code> — <strong>Power-on sentinel.</strong> Sensor reports these during boot/self-test before first real measurement.</p>
+    <p><code>-127 °C</code> — <strong>I²C comms failure.</strong> MCU couldn't reach the sensor over the bus.</p>
+    <p><code>0 % moisture</code> — <strong>Sensor in air or unplugged.</strong> Capacitive sensors read ~0% when not in soil.</p>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card"><h3>💧 Soil Moisture (%)</h3><canvas id="chMoisture"></canvas></div>
+    <div class="chart-card"><h3>🌡️ Temperature (°C)</h3><canvas id="chTemperature"></canvas></div>
+    <div class="chart-card"><h3>💨 Humidity (%)</h3><canvas id="chHumidity"></canvas></div>
+    <div class="chart-card"><h3>🔊 Sound Level (%)</h3><canvas id="chSound_level"></canvas></div>
+    <div class="chart-card"><h3>🔋 Battery (V)</h3><canvas id="chBattery_voltage"></canvas></div>
+    <div class="chart-card"><h3>👣 Footfall Count</h3><canvas id="chFootfall_count"></canvas></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th></th>
+        <th>Time (UTC)</th>
+        <th>Moisture</th>
+        <th>Temp</th>
+        <th>Humidity</th>
+        <th>Sound</th>
+        <th>Battery</th>
+        <th>Footfall</th>
+        <th>RSSI</th>
+      </tr>
+    </thead>
+    <tbody id="readingsBody">
+      <tr><td colspan="9" style="text-align:center;color:var(--muted)">Select a tree…</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+const API = '';
+const MAX_POINTS = 50;
+let autoTimer = null;
+const AUTO_INTERVAL = 2000;
+
+const METRICS = [
+  { key:'moisture',       label:'Moisture %',     colorA:'#3fb950', colorB:'#bc8cff', min:0,   max:100 },
+  { key:'temperature',    label:'Temperature °C', colorA:'#f85149', colorB:'#ff9c8a', min:-20, max:60  },
+  { key:'humidity',       label:'Humidity %',     colorA:'#58a6ff', colorB:'#a0d2ff', min:0,   max:100 },
+  { key:'sound_level',    label:'Sound %',        colorA:'#d2991d', colorB:'#f0c040', min:0,   max:100 },
+  { key:'battery_voltage',label:'Battery V',      colorA:'#7ee787', colorB:'#bcf0c0', min:2.0, max:5.0 },
+  { key:'footfall_count', label:'Footfall',       colorA:'#f778ba', colorB:'#ffb0d0', min:0,   max:null },
+];
+
+const charts = {};  // key → Chart instance
+
+function classify(label, val) {
+  if (val === null || val === undefined) return 'null';
+  switch (label) {
+    case 'temperature':
+      if (val <= -99) return 'bad';
+      if (val < -40) return 'warn';
+      if (val > 85) return 'warn';
+      return 'ok';
+    case 'humidity':
+      if (val < 0) return 'bad';
+      if (val > 100) return 'warn';
+      return 'ok';
+    case 'moisture':
+      if (val < 0) return 'bad';
+      if (val > 100) return 'warn';
+      return 'ok';
+    case 'battery_voltage':
+      if (val < 0) return 'bad';
+      if (val > 5) return 'warn';
+      if (val < 2.8) return 'warn';
+      return 'ok';
+    default: return 'ok';
+  }
+}
+
+function badge(cls, text) {
+  const map = {ok:'badge-ok', warn:'badge-warn', bad:'badge-bad', null:'badge-null'};
+  return `<span class="badge ${map[cls]||'badge-null'}">${text}</span>`;
+}
+
+function formatVal(label, val) {
+  if (val === null || val === undefined) return badge('null', '—');
+  const cls = classify(label, val);
+  let unit = '';
+  if (label === 'temperature') unit = '°C';
+  if (label === 'humidity' || label === 'moisture' || label === 'sound_level') unit = '%';
+  if (label === 'battery_voltage') unit = 'V';
+  if (label === 'rssi') unit = 'dB';
+  return badge(cls, val.toFixed(1) + unit);
+}
+
+function toggleAuto() { document.getElementById('autoRefresh').checked ? startAuto() : stopAuto(); }
+function startAuto() {
+  stopAuto();
+  autoTimer = setInterval(refresh, AUTO_INTERVAL);
+  document.getElementById('refreshStatus').textContent = '● live';
+}
+function stopAuto() {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  document.getElementById('refreshStatus').textContent = '';
+}
+
+function fmtTime(iso) {
+  return new Date(iso).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+// ── Create all 6 charts ONCE — never destroyed ──
+function initCharts() {
+  METRICS.forEach(m => {
+    const id = 'ch' + m.key.charAt(0).toUpperCase() + m.key.slice(1);
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+    charts[m.key] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label:'A', data:[], borderColor:m.colorA, backgroundColor:'transparent',
+            tension:0.3, pointRadius:0, borderWidth:2, spanGaps:true },
+          { label:'B', data:[], borderColor:m.colorB, backgroundColor:'transparent',
+            tension:0.3, pointRadius:0, borderWidth:2, borderDash:[5,3], spanGaps:true },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: true, labels: { color:'#8b949e', usePointStyle:true, boxWidth:8, font:{size:10} } },
+        },
+        scales: {
+          x: { ticks:{color:'#8b949e', maxTicksLimit:6, font:{size:9}}, grid:{color:'#21262d'} },
+          y: { ...(m.min!=null&&{min:m.min}), ...(m.max!=null&&{max:m.max}),
+               ticks:{color:'#8b949e', font:{size:9}}, grid:{color:'#21262d'} },
+        },
+      },
+    });
+  });
+}
+
+// ── Mutate chart data in-place (Chart.js detects mutations reliably) ──
+function setChartData(metricKey, labels, dataA, dataB) {
+  const c = charts[metricKey];
+  if (!c) return;
+  c.data.labels.length = 0;
+  c.data.labels.push(...labels);
+  c.data.datasets[0].data.length = 0;
+  c.data.datasets[0].data.push(...dataA);
+  c.data.datasets[1].data.length = 0;
+  c.data.datasets[1].data.push(...dataB);
+}
+function flushAllCharts() {
+  Object.values(charts).forEach(c => c && c.update());
+}
+
+async function loadTrees() {
+  let trees = [];
+  try {
+    const r = await fetch(API + '/api/trees?has_sensor=true');
+    trees = await r.json();
+  } catch(e) {}
+  const selA = document.getElementById('treeASelect');
+  const selB = document.getElementById('treeBSelect');
+  if (trees.length === 0) {
+    selA.innerHTML = '<option value="">— no sensor trees yet —</option>';
+    selB.innerHTML = '<option value="">(none)</option>';
+  } else {
+    const opts = trees.map(t =>
+      `<option value="${t.id}">${t.id} — ${t.name} (${t.device_eui}) — ${t.status}</option>`
+    ).join('');
+    selA.innerHTML = opts;
+    selB.innerHTML = `<option value="">(none)</option>` + opts;
+    selA.value = trees[0].id;
+    if (trees.length > 1) selB.value = trees[1].id;
+  }
+  refresh();
+  startAuto();
+}
+
+async function fetchReadings(treeId) {
+  if (!treeId) return [];
+  try {
+    const r = await fetch(API + `/api/sensors/tree/${treeId}/readings?limit=${MAX_POINTS}`);
+    if (!r.ok) return [];
+    const data = await r.json();
+    return Array.isArray(data) ? [...data].reverse() : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// ── Main refresh: index-based x-axis so both trees fill the graph independently ──
+async function refresh() {
+  const manual = document.getElementById('manualId').value.trim();
+  const idA = manual || document.getElementById('treeASelect').value;
+  const idB = manual ? '' : document.getElementById('treeBSelect').value;
+  if (!idA) return;
+
+  const [dataA, dataB] = await Promise.all([
+    fetchReadings(idA),
+    idB ? fetchReadings(idB) : Promise.resolve([]),
+  ]);
+
+  // Index-based x-axis: each tree gets its own continuous slot 0..N-1.
+  // Labels show the newest timestamp from either tree's corresponding reading.
+  const maxLen = Math.max(dataA.length, dataB.length, 1);
+  const labels = [];
+  for (let i = 0; i < maxLen; i++) {
+    const tsA = dataA[i] ? fmtTime(dataA[i].recorded_at) : '';
+    const tsB = dataB[i] ? fmtTime(dataB[i].recorded_at) : '';
+    labels.push(tsA || tsB || `#${i+1}`);
+  }
+
+  METRICS.forEach(m => {
+    const valsA = dataA.map(d => d[m.key] ?? null);
+    const valsB = dataB.map(d => d[m.key] ?? null);
+    setChartData(m.key, [...labels], valsA, valsB);
+  });
+  flushAllCharts();
+
+  // Table: interleaved A/B, newest first
+  const combined = [];
+  const seen = new Set();
+  for (const d of dataA) { combined.push({tree:'A', ...d}); seen.add(d.recorded_at); }
+  for (const d of dataB) {
+    if (!seen.has(d.recorded_at)) combined.push({tree:'B', ...d});
+  }
+  combined.sort((a,b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+  renderTable(combined.slice(0, MAX_POINTS));
+
+  const all = [...dataA, ...dataB];
+  const hasFault = all.some(d =>
+    classify('temperature', d.temperature) === 'bad' ||
+    classify('humidity', d.humidity) === 'bad'
+  );
+  document.getElementById('faultInfo').style.display = hasFault ? 'block' : 'none';
+}
+
+function renderTable(readings) {
+  const tbody = document.getElementById('readingsBody');
+  tbody.innerHTML = readings.map(d => {
+    const ts = new Date(d.recorded_at).toISOString().replace('T',' ').slice(0,19);
+    const isA = d.tree === 'A';
+    const rowClass = isA ? 'tree-a-row' : 'tree-b-row';
+    const labelCls = isA ? 'row-label-a' : 'row-label-b';
+    const hasAnomaly = ['temperature','humidity','moisture'].some(k => classify(k, d[k]) === 'bad');
+    return `<tr class="${rowClass} ${hasAnomaly?'anomaly-row':''}">
+      <td><span class="row-label ${labelCls}">${d.tree}</span></td>
+      <td style="font-family:monospace;font-size:0.8rem">${ts}</td>
+      <td>${formatVal('moisture', d.moisture)}</td>
+      <td>${formatVal('temperature', d.temperature)}</td>
+      <td>${formatVal('humidity', d.humidity)}</td>
+      <td>${formatVal('sound_level', d.sound_level)}</td>
+      <td>${formatVal('battery_voltage', d.battery_voltage)}</td>
+      <td>${d.footfall_count ?? badge('null','—')}</td>
+      <td>${d.rssi !== null ? d.rssi+' dB' : badge('null','—')}</td>
+    </tr>`;
+  }).join('');
+}
+
+initCharts();
+loadTrees();  // calls startAuto() after trees load
+document.getElementById('treeASelect').addEventListener('change', refresh);
+document.getElementById('treeBSelect').addEventListener('change', refresh);
+document.getElementById('manualId').addEventListener('change', refresh);
+document.getElementById('manualId').addEventListener('keydown', e => { if (e.key === 'Enter') refresh(); });
+</script>
+</body>
+</html>

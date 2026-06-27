@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Be Tree — Registrieren</title>
+<style>
+  :root {
+    --bg: #0d1117; --card: #161b22; --border: #30363d;
+    --text: #c9d1d9; --muted: #8b949e;
+    --green: #3fb950; --red: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 40px 32px; width: 100%; max-width: 400px;
+  }
+  .logo { text-align: center; font-size: 3rem; margin-bottom: 8px; }
+  h1 { text-align: center; font-size: 1.5rem; font-weight: 700; color: var(--green); margin-bottom: 4px; }
+  .subtitle { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 32px; }
+  .field { margin-bottom: 20px; }
+  label {
+    display: block; font-size: 0.8rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;
+  }
+  label .hint { font-size: 0.75rem; color: var(--muted); text-transform: none; letter-spacing: 0; margin-left: 6px; }
+  input, select {
+    width: 100%; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; font-size: 1rem;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--green); }
+  .btn {
+    width: 100%; background: var(--green); color: #000;
+    border: none; border-radius: 8px; padding: 14px;
+    font-size: 1rem; font-weight: 700; cursor: pointer;
+    transition: opacity 0.2s; margin-top: 8px;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .error {
+    background: rgba(248,81,73,0.12); border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 8px; padding: 10px 14px; font-size: 0.85rem;
+    color: var(--red); margin-top: 12px; display: none;
+  }
+  .footer {
+    text-align: center; margin-top: 24px; font-size: 0.85rem; color: var(--muted);
+  }
+  .footer a { color: var(--green); text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">🌱</div>
+  <h1>Be Tree</h1>
+  <p class="subtitle">Werde Baumhüter in Karlsruhe</p>
+
+  <div class="field">
+    <label for="username">Benutzername <span class="hint">(für Login)</span></label>
+    <input id="username" type="text" placeholder="z.B. max_muster" autocapitalize="none" spellcheck="false">
+  </div>
+
+  <div class="field">
+    <label for="display_name">Anzeigename</label>
+    <input id="display_name" type="text" placeholder="z.B. Max Mustermann">
+  </div>
+
+  <div class="field">
+    <label for="neighborhood">Stadtviertel</label>
+    <select id="neighborhood">
+      <option value="">— bitte wählen —</option>
+      <option value="Innenstadt">Innenstadt</option>
+      <option value="Südstadt">Südstadt</option>
+      <option value="Weststadt">Weststadt</option>
+      <option value="Oststadt">Oststadt</option>
+      <option value="Nordstadt">Nordstadt</option>
+      <option value="Südweststadt">Südweststadt</option>
+      <option value="Mühlburg">Mühlburg</option>
+      <option value="Durlach">Durlach</option>
+      <option value="Neureut">Neureut</option>
+      <option value="Waldstadt">Waldstadt</option>
+    </select>
+  </div>
+
+  <button class="btn" id="regBtn" onclick="doRegister()">Konto erstellen</button>
+  <div class="error" id="errorMsg"></div>
+
+  <hr class="divider">
+  <div class="footer">
+    Schon registriert? <a href="/login">Einloggen</a>
+  </div>
+</div>
+
+<script>
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doRegister();
+});
+
+async function doRegister() {
+  const username = document.getElementById('username').value.trim().toLowerCase().replace(/\s+/g, '_');
+  const display_name = document.getElementById('display_name').value.trim();
+  const neighborhood = document.getElementById('neighborhood').value;
+
+  const btn = document.getElementById('regBtn');
+  const err = document.getElementById('errorMsg');
+  err.style.display = 'none';
+
+  if (!username || username.length < 2) {
+    showError('Benutzername muss mindestens 2 Zeichen haben.');
+    return;
+  }
+  if (!display_name) {
+    showError('Bitte Anzeigenamen eingeben.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Konto wird erstellt…';
+
+  try {
+    const res = await fetch('/api/citizens/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, display_name, neighborhood: neighborhood || null }),
+    });
+
+    if (res.status === 409) {
+      showError('Benutzername bereits vergeben. Bitte einen anderen wählen.');
+      return;
+    }
+    if (!res.ok) {
+      showError('Fehler beim Registrieren. Bitte erneut versuchen.');
+      return;
+    }
+
+    const user = await res.json();
+    localStorage.setItem('betree_user_id', user.id);
+    localStorage.setItem('betree_username', username);
+    localStorage.setItem('betree_display_name', user.display_name);
+    window.location.href = '/profile';
+  } catch (e) {
+    showError('Netzwerkfehler. Ist der Server erreichbar?');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Konto erstellen';
+  }
+}
+
+function showError(msg) {
+  const err = document.getElementById('errorMsg');
+  err.textContent = msg;
+  err.style.display = 'block';
+}
+
+if (localStorage.getItem('betree_user_id')) {
+  window.location.href = '/profile';
+}
+</script>
+</body>
+</html>
