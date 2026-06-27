@@ -16,10 +16,10 @@
 //          The backend schema accepts nulls for all fields.
 //
 // PINOUT (see wiring.md):
-//   GPIO 14 → DHT11 DATA
-//   GPIO 34 → Moisture SIG (ADC)
-//   GPIO 27 → Vibration DO
-//   GPIO 32 → Microphone OUT (ADC)
+//   GPIO 14 → DHT11 DATA  Lila
+//   GPIO 34 → Moisture SIG (ADC)  Yellow
+//   GPIO 27 → Vibration DO  Green
+//   GPIO 32 → Microphone OUT (ADC) Blue
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -40,7 +40,7 @@
 #define WIFI_PASS     "12345678"
 
 // FastAPI backend
-#define API_HOST      "gmc-intensive-bouquet-gotta.trycloudflare.com"
+#define API_HOST      "api.betree.me"
 #define API_PATH      "/api/sensors/ingest"
 #define API_KEY       "jierpjijdklghweiorjnv25234mnqwkehijgsd"
 
@@ -100,6 +100,10 @@
   // Full node: send every N milliseconds (always awake).
   #define SEND_INTERVAL_MS  1000
 #endif
+
+// ── RGB LED pins (shared by both node types) ────────────────────
+#define LED_R        5
+#define LED_G        13
 
 // ═══════════════════════════════════════════════════════════════
 //  FULL NODE — Gateway (ESP-NOW receiver + WiFi HTTP forwarder)
@@ -181,6 +185,27 @@ void send_own_telemetry(int rssi) {
     SensorReadings r;
     read_sensors(SENSOR_CFG, r);
 
+    // ── RGB LED: moisture indicator ────────────────────────────
+    analogWrite(LED_R, 0);
+    analogWrite(LED_G, 0);
+    if (r.moisture_pct < 30) {
+        analogWrite(LED_R, 255);
+        Serial.print("[led] moisture=");
+        Serial.print(r.moisture_pct);
+        Serial.println("% → RED");
+    } else if (r.moisture_pct < 60) {
+        analogWrite(LED_R, 255);
+        analogWrite(LED_G, 10);    // red LED is dimmer — keep green barely on
+        Serial.print("[led] moisture=");
+        Serial.print(r.moisture_pct);
+        Serial.println("% → YELLOW");
+    } else {
+        analogWrite(LED_G, 255);
+        Serial.print("[led] moisture=");
+        Serial.print(r.moisture_pct);
+        Serial.println("% → GREEN");
+    }
+
     char json[256];
     int n = build_json(SENSOR_CFG, r, DEVICE_EUI, TREE_ID,
                        rssi, 0.0f,   // full node has no ESP-NOW SNR
@@ -251,6 +276,13 @@ void setup() {
     // --- Sensors ---
     sensors_init(SENSOR_CFG);
 
+    // --- RGB LED ---
+    pinMode(LED_R, OUTPUT);
+    pinMode(LED_G, OUTPUT);
+    analogWrite(LED_R, 255); analogWrite(LED_G, 255);
+    delay(150);
+    analogWrite(LED_R, 0);   analogWrite(LED_G, 0);
+
     Serial.println("Wurzelwerk FULL NODE online.");
     Serial.print("Target: http://");
     Serial.print(API_HOST);
@@ -315,7 +347,18 @@ static void on_espnow_sent(const uint8_t *mac, esp_now_send_status_t status) {
 
 // ── Setup ──────────────────────────────────────────────────────
 void setup() {
+    // ── Bare-metal LED blink test (before ANY other init) ─────
+    pinMode(LED_R, OUTPUT);
+    pinMode(LED_G, OUTPUT);
+    for (int i = 0; i < 3; i++) {
+        analogWrite(LED_R, 255); delay(200);
+        analogWrite(LED_R, 0);
+        analogWrite(LED_G, 255); delay(200);
+        analogWrite(LED_G, 0);
+    }
+
     Serial.begin(115200);
+    Serial.println("[led] Blink test done — if no light, check wiring.");
 
     // ── Radio init: scan for AP channel without connecting ──────
     // We don't need WiFi connectivity — just need the radio on the
@@ -394,6 +437,22 @@ void setup() {
     Serial.print(r.moisture_raw);
     Serial.print(" → moisture_pct=");
     Serial.println(r.moisture_pct);
+
+    // ── RGB LED: moisture indicator ────────────────────────────
+    analogWrite(LED_R, 0);
+    analogWrite(LED_G, 0);
+    if (r.moisture_pct < 30) {
+        analogWrite(LED_R, 255);   // Red — critical, too dry
+    } else if (r.moisture_pct < 60) {
+        analogWrite(LED_R, 255);   // Yellow
+        analogWrite(LED_G, 10);    // red LED is dimmer — keep green barely on
+    } else {
+        analogWrite(LED_G, 255);   // Green — healthy moisture
+    }
+    Serial.print("[led] moisture=");
+    Serial.print(r.moisture_pct);
+    Serial.print("% → ");
+    Serial.println(r.moisture_pct < 30 ? "RED" : r.moisture_pct < 60 ? "YELLOW" : "GREEN");
 
     char json[256];
     int n = build_json(SENSOR_CFG, r, DEVICE_EUI, TREE_ID,
