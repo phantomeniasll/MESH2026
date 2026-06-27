@@ -101,7 +101,7 @@ void reset_footfall() {
 
 // ── Build JSON (partial sensor support) ─────────────────────────
 int build_json(const SensorConfig& cfg, const SensorReadings& r,
-               const char* device_eui,
+               const char* device_eui, const char* tree_id,
                int rssi, float snr,
                char* buf, int buf_size) {
 
@@ -126,6 +126,12 @@ int build_json(const SensorConfig& cfg, const SensorReadings& r,
     comma_if(first);
     w("\"device_eui\":\"");
     w(device_eui);
+    w("\"");
+
+    // tree_id (always present — identifies the tree this sensor is mounted on)
+    comma_if(first);
+    w("\"tree_id\":\"");
+    w(tree_id);
     w("\"");
 
     // moisture

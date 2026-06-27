@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class WateringLogCreate(BaseModel):
     """When a citizen taps NFC and waters a tree."""
     nfc_tag_id: str = Field(..., max_length=64)
+    tree_id: str | None = None
     user_id: str | None = None
     estimated_liters: float | None = Field(None, ge=0)
     photo_url: str | None = None
@@ -28,6 +29,8 @@ class WateringLogResponse(BaseModel):
     estimated_liters: float | None
     photo_url: str | None
     points_earned: int
+    total_points: int
+    current_streak: int
     created_at: datetime
 
     model_config = {"from_attributes": True}

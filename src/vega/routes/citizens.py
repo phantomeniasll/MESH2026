@@ -15,7 +15,7 @@ from ..schemas.citizen import (
     WateringLogCreate,
     WateringLogResponse,
 )
-from ..services.points import award_points_for_watering
+from ..services.points import award_points_for_watering, update_user_after_watering
 
 router = APIRouter(prefix="/api/citizens", tags=["citizens"])
 
@@ -44,11 +44,16 @@ async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
 @router.post("/water", response_model=WateringLogResponse, status_code=201)
 async def log_watering(payload: WateringLogCreate, db: AsyncSession = Depends(get_db)):
     """Citizen taps NFC and waters a tree."""
-    # Find tree by NFC tag
-    result = await db.execute(
-        select(Tree).where(Tree.nfc_tag_id == payload.nfc_tag_id)
-    )
-    tree = result.scalar_one_or_none()
+    # Resolve tree by explicit tree_id first, else fall back to NFC tag
+    tree = None
+    if payload.tree_id:
+        result = await db.execute(select(Tree).where(Tree.id == payload.tree_id))
+        tree = result.scalar_one_or_none()
+    if not tree:
+        result = await db.execute(
+            select(Tree).where(Tree.nfc_tag_id == payload.nfc_tag_id)
+        )
+        tree = result.scalar_one_or_none()
     if not tree:
         raise HTTPException(status_code=404, detail=f"No tree found for NFC tag: {payload.nfc_tag_id}")
 
@@ -72,13 +77,22 @@ async def log_watering(payload: WateringLogCreate, db: AsyncSession = Depends(ge
     )
     db.add(watering)
 
-    # Update user stats
+    # Update user stats — points, streak, level, last activity
     if user:
-        user.waterings_count += 1  # type: ignore[attr-defined]
-        user.total_points += points  # type: ignore[attr-defined]
+        update_user_after_watering(user, points)
 
     await db.flush()
-    return WateringLogResponse.model_validate(watering)
+    return WateringLogResponse(
+        id=watering.id,
+        tree_id=watering.tree_id,
+        user_id=watering.user_id,
+        estimated_liters=watering.estimated_liters,
+        photo_url=watering.photo_url,
+        points_earned=watering.points_earned,
+        total_points=user.total_points if user else 0,
+        current_streak=user.current_streak if user else 0,
+        created_at=watering.created_at,
+    )
 
 
 @router.get("/profile/{user_id}", response_model=UserProfile)

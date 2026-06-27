@@ -44,11 +44,13 @@
 #define API_KEY       "jierpjijdklghweiorjnv25234mnqwkehijgsd"
 
 // ── NODE IDENTITY ───────────────────────────────────────────────
+// Provision DEVICE_EUI and TREE_ID per physical box (flash once).
 #ifdef NODE_TYPE_MESH
   #define DEVICE_EUI   "tree-mesh-01"      // change per sensor box
 #else
   #define DEVICE_EUI   "tree-gateway-01"   // the full node / bridge
 #endif
+#define TREE_ID        "KA-00001"          // KA-##### tree this sensor monitors
 
 // ── ESP-NOW PEER (mesh → gateway MAC) ───────────────────────────
 // Both nodes use a fixed locally-administered MAC so the mesh node
@@ -177,7 +179,7 @@ void send_own_telemetry(int rssi) {
     read_sensors(SENSOR_CFG, r);
 
     char json[256];
-    int n = build_json(SENSOR_CFG, r, DEVICE_EUI,
+    int n = build_json(SENSOR_CFG, r, DEVICE_EUI, TREE_ID,
                        rssi, 0.0f,   // full node has no ESP-NOW SNR
                        json, sizeof(json));
     if (n < 0) {
@@ -357,7 +359,7 @@ void setup() {
     read_sensors(SENSOR_CFG, r);
 
     char json[256];
-    int n = build_json(SENSOR_CFG, r, DEVICE_EUI,
+    int n = build_json(SENSOR_CFG, r, DEVICE_EUI, TREE_ID,
                        0, 0.0f,   // mesh node: RSSI/SNR not meaningful
                        json, sizeof(json));
     if (n < 0) {

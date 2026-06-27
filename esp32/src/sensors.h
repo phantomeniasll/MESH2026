@@ -65,7 +65,7 @@ void reset_footfall();
 // Returns the number of bytes written (excluding null terminator),
 // or -1 if the buffer was too small (content is truncated).
 int build_json(const SensorConfig& cfg, const SensorReadings& r,
-               const char* device_eui,
+               const char* device_eui, const char* tree_id,
                int rssi, float snr,
                char* buf, int buf_size);
 

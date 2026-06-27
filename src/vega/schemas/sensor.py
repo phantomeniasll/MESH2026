@@ -12,7 +12,8 @@ class SensorReadingCreate(BaseModel):
     (e.g. -99 °C, -1 %RH) during startup or fault conditions.
     Application logic, not the schema, decides what's plausible.
     """
-    device_eui: str = Field(..., max_length=32)
+    tree_id: str = Field(..., max_length=36, description="KA-##### id the firmware is provisioned with")
+    device_eui: str | None = None
     moisture: float | None = Field(None, ge=-100, le=200)
     temperature: float | None = Field(None, ge=-100, le=125)
     humidity: float | None = Field(None, ge=-100, le=200)

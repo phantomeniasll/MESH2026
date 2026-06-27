@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 from .config import settings
 from .database import init_db
 from .routes import citizens, dashboard, gamification, rewards, sensors, trees
+from .routes.map import router as map_router
 
 
 @asynccontextmanager
@@ -36,6 +37,7 @@ app.add_middleware(
 )
 
 # Mount route modules
+app.include_router(map_router)
 app.include_router(sensors.router)
 app.include_router(trees.router)
 app.include_router(citizens.router)

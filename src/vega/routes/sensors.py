@@ -27,7 +27,7 @@ async def ingest_reading(
 
     # ── Print incoming reading for visibility ──
     print(f"\n{'='*60}")
-    print(f"📡 INGEST  device={payload.device_eui}")
+    print(f"📡 INGEST  tree_id={payload.tree_id}  device={payload.device_eui}")
     print(f"   moisture={payload.moisture}%  temp={payload.temperature}°C  "
           f"humidity={payload.humidity}%")
     print(f"   footfall={payload.footfall_count}  battery={payload.battery_voltage}V  "
@@ -36,23 +36,15 @@ async def ingest_reading(
     print(f"{'='*60}\n")
 
     result = await db.execute(
-        select(Tree).where(Tree.device_eui == payload.device_eui)
+        select(Tree).where(Tree.id == payload.tree_id)
     )
     tree = result.scalar_one_or_none()
     if not tree:
-        # Auto-register unknown devices at Steamworks Karlsruhe
-        tree = Tree(
-            name=f"Auto: {payload.device_eui}",
-            device_eui=payload.device_eui,
-            latitude=49.0015270,
-            longitude=8.3879422,
-            neighborhood="Südweststadt",
-            address="Roonstraße 23a, 76137 Karlsruhe",
-            notes="Auto-registered from unknown device — HackXplore 2026",
-        )
-        db.add(tree)
-        await db.flush()
-        print(f"🆕 Auto-registered tree '{tree.name}'  id={tree.id[:8]}…")
+        raise HTTPException(status_code=404, detail=f"Unknown tree_id: {payload.tree_id}")
+
+    # Backfill device_eui metadata if the tree doesn't have one yet
+    if payload.device_eui and tree.device_eui is None:
+        tree.device_eui = payload.device_eui
 
     reading = Reading(
         tree_id=tree.id,

@@ -1,10 +1,9 @@
 """Tree model — the central entity."""
 
-import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, String, Text
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -27,7 +26,7 @@ class TreeStatus(StrEnum):
 class Tree(Base):
     __tablename__ = "trees"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     species: Mapped[str | None] = mapped_column(String(128))
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
@@ -35,6 +34,11 @@ class Tree(Base):
     neighborhood: Mapped[str | None] = mapped_column(String(64))
     address: Mapped[str | None] = mapped_column(String(256))
     planting_date: Mapped[datetime | None] = mapped_column(DateTime)
+    planting_year: Mapped[int | None] = mapped_column(Integer)
+    age_estimated: Mapped[bool] = mapped_column(Boolean, default=False)
+    est_moisture: Mapped[float | None] = mapped_column(Float)
+    est_heat: Mapped[float | None] = mapped_column(Float)
+    liters_per_day: Mapped[float | None] = mapped_column(Float)
     nfc_tag_id: Mapped[str | None] = mapped_column(String(64), unique=True)
     device_eui: Mapped[str | None] = mapped_column(String(32), unique=True)
     status: Mapped[str] = mapped_column(String(16), default=TreeStatus.UNKNOWN)
