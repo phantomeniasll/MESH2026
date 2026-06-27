@@ -43,8 +43,13 @@ void sensors_init(const SensorConfig& cfg) {
 
 // ── Read all enabled sensors ────────────────────────────────────
 void read_sensors(const SensorConfig& cfg, SensorReadings& r) {
-    // Zero the struct (disabled fields stay at zero/null-equivalent)
+    // Save caller-set values that memset would destroy
+    float caller_battery_v = r.battery_v;
+
     memset(&r, 0, sizeof(r));
+
+    // Restore caller-set values
+    r.battery_v = caller_battery_v;
 
     if (cfg.has_dht) {
         dht.readTemperature();

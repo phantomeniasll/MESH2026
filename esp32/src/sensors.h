@@ -25,11 +25,11 @@
 
 // ── Sensor presence flags (set at compile time per node) ────────
 struct SensorConfig {
-    bool has_dht       = true;   // temperature + humidity
-    bool has_moisture  = true;   // capacitive soil moisture
-    bool has_vibration = true;   // footfall detection
-    bool has_mic       = true;   // ambient sound level
-    bool has_battery   = false;  // voltage divider on ADC (separate hardware)
+    bool has_dht;         // temperature + humidity
+    bool has_moisture;    // capacitive soil moisture
+    bool has_vibration;   // footfall detection
+    bool has_mic;         // ambient sound level
+    bool has_battery;     // voltage divider on ADC (separate hardware)
 };
 
 // ── Sensor readings struct ──────────────────────────────────────

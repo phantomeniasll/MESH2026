@@ -30,6 +30,7 @@
 
 #if defined(NODE_TYPE_MESH) || defined(NODE_TYPE_FULL)
   #include <esp_now.h>
+  #include <esp_wifi.h>
 #endif
 
 #include "sensors.h"
@@ -39,7 +40,7 @@
 #define WIFI_PASS     "12345678"
 
 // FastAPI backend
-#define API_HOST      "mountains-tabs-lyrics-roads.trycloudflare.com"
+#define API_HOST      "bookmarks-enables-primary-scenario.trycloudflare.com"
 #define API_PATH      "/api/sensors/ingest"
 #define API_KEY       "jierpjijdklghweiorjnv25234mnqwkehijgsd"
 
@@ -61,7 +62,6 @@
 #endif
 #ifdef NODE_TYPE_MESH
   static const uint8_t GATEWAY_MAC[] = {0x02, 0x00, 0x00, 0x00, 0x00, 0x01};
-  static const uint8_t ESP_NOW_CHANNEL = 1;
 #endif
 
 // ── SENSOR CONFIG (per node type) ───────────────────────────────
@@ -94,7 +94,7 @@
 #ifdef NODE_TYPE_MESH
   // Deep-sleep wake interval in seconds.
   // Shorter for demo; production: 60–900 seconds.
-  #define SEND_INTERVAL_SEC 15
+  #define SEND_INTERVAL_SEC 1   // TODO: bump back to 15–900 for production
 #else
   // Full node: send every N milliseconds (always awake).
   #define SEND_INTERVAL_MS  1000
@@ -135,6 +135,8 @@ static void on_espnow_recv(const uint8_t *mac, const uint8_t *data, int len) {
         Serial.printf("%02X", mac[i]);
         if (i < 5) Serial.print(":");
     }
+    Serial.print("  data: ");
+    Serial.write(data, len);
     Serial.println();
 }
 
@@ -202,9 +204,9 @@ void setup() {
     // --- Radio (STA mode required for both WiFi and ESP-NOW) ---
     WiFi.mode(WIFI_STA);
 
-    // Set base MAC to our known address so the mesh node can find us.
-    // Must be called BEFORE WiFi.begin().
-    esp_base_mac_addr_set(GATEWAY_MAC);
+    // Override STA MAC so mesh nodes have a fixed address to target.
+    // Must be called after WiFi.mode() but before WiFi.begin().
+    esp_wifi_set_mac(WIFI_IF_STA, GATEWAY_MAC);
 
     // --- WiFi connect ---
     WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -216,6 +218,8 @@ void setup() {
     Serial.println(WiFi.localIP());
     Serial.print("MAC: ");
     Serial.println(WiFi.macAddress());
+    Serial.print("Channel: ");
+    Serial.println(WiFi.channel());
 
     // --- Internet check ---
     {
@@ -254,6 +258,7 @@ void setup() {
 
 // ── Loop ───────────────────────────────────────────────────────
 unsigned long last_own_send = 0;
+unsigned long last_heartbeat = 0;
 
 void loop() {
     // --- Forward received ESP-NOW packets ---
@@ -274,6 +279,17 @@ void loop() {
         send_own_telemetry(rssi);
         last_own_send = millis();
     }
+
+    // --- Periodic heartbeat ---
+    if (millis() - last_heartbeat >= 30000) {
+        Serial.print("[full] Heartbeat — channel=");
+        Serial.print(WiFi.channel());
+        Serial.print("  RSSI=");
+        Serial.print(WiFi.RSSI());
+        Serial.print("  free_heap=");
+        Serial.println(ESP.getFreeHeap());
+        last_heartbeat = millis();
+    }
 }
 
 #endif // NODE_TYPE_FULL
@@ -285,38 +301,52 @@ void loop() {
 
 // ── ESP-NOW send status callback ────────────────────────────────
 static void on_espnow_sent(const uint8_t *mac, esp_now_send_status_t status) {
-    Serial.print("[esp-now] Send ");
-    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "OK" : "FAIL");
+    // ESP_NOW has no guaranteed delivery. Status is best-effort.
+    // A packet can arrive even when the TX callback reports failure
+    // (known ESP32 IDF quirk with locally-administered MACs).
+    Serial.print("[esp-now] TX done (status=");
+    Serial.print(status);
+    Serial.print(") → ");
+    Serial.println(status == ESP_NOW_SEND_SUCCESS
+        ? "ACK received"
+        : "no ACK (packet may still have arrived)");
 }
 
 // ── Setup ──────────────────────────────────────────────────────
 void setup() {
     Serial.begin(115200);
 
-    // ── Radio init (STA mode, connect to learn channel) ──────────
+    // ── Radio init: scan for AP channel without connecting ──────
+    // We don't need WiFi connectivity — just need the radio on the
+    // same channel as the gateway so ESP-NOW packets align.
     WiFi.mode(WIFI_STA);
-    
-    // Connect to the same AP as the gateway so ESP-NOW channel matches.
-    // Phone hotspot = we control the channel. No scan needed — just connect.
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-    unsigned long wifi_start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - wifi_start < 8000) {
-        delay(200);
-        Serial.print(".");
-    }
-    
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.print("\n[mesh] WiFi OK, channel ");
-        Serial.println(WiFi.channel());
-        // Radio is now on the AP's channel. ESP-NOW will use this.
-    } else {
-        Serial.println("\n[mesh] WiFi FAILED — will try ESP-NOW on default.");
-    }
-    
-    // Disconnect from WiFi to save power — the radio stays on this channel
-    // and ESP-NOW can use it without a WiFi connection.
-    WiFi.disconnect(true);
+
+    int ap_channel = -1;
+    WiFi.disconnect();             // ensure clean scan state
     delay(50);
+
+    int net_count = WiFi.scanNetworks(false, false);  // passive scan, no hidden SSIDs
+    for (int i = 0; i < net_count; i++) {
+        if (WiFi.SSID(i) == String(WIFI_SSID)) {
+            ap_channel = WiFi.channel(i);
+            break;
+        }
+    }
+    WiFi.scanDelete();
+
+    if (ap_channel <= 0) {
+        ap_channel = 1;  // last resort
+        Serial.println("[mesh] AP not found in scan — using channel 1.");
+    }
+
+    esp_wifi_set_channel(ap_channel, WIFI_SECOND_CHAN_NONE);
+    delay(50);  // let the radio settle on the new channel
+
+    // Disable WiFi power saving — critical for ESP-NOW TX reliability.
+    esp_wifi_set_ps(WIFI_PS_NONE);
+
+    Serial.print("[mesh] Radio set to channel ");
+    Serial.println(ap_channel);
 
     // --- ESP-NOW init ---
     if (esp_now_init() != ESP_OK) {
@@ -325,20 +355,21 @@ void setup() {
         ESP.restart();
     }
     esp_now_register_send_cb(on_espnow_sent);
+    Serial.println("[esp-now] Init OK, send callback registered.");
 
     // --- Register the gateway peer ---
     esp_now_peer_info_t peer = {};
     memcpy(peer.peer_addr, GATEWAY_MAC, 6);
-    peer.channel = 0;   // 0 = use current WiFi channel (matches hotspot)
+    peer.channel = (uint8_t)ap_channel;
     peer.encrypt = false;
+    Serial.print("[esp-now] Registering peer on channel ");
+    Serial.println(ap_channel);
 
-    if (esp_now_add_peer(&peer) != ESP_OK) {
-        Serial.println("[esp-now] Peer add FAILED — may already exist.");
-        // Not fatal: if the peer was added in a previous wake cycle
-        // (deep sleep preserved it? No — deep sleep resets RAM.
-        // But esp_now_add_peer might fail if it's already registered
-        // in the same boot cycle. On first boot after flash, it
-        // should succeed.)
+    esp_err_t peer_err = esp_now_add_peer(&peer);
+    Serial.print("[esp-now] add_peer result: ");
+    Serial.println(esp_err_to_name(peer_err));
+    if (peer_err == ESP_ERR_ESPNOW_EXIST) {
+        Serial.println("[esp-now] Peer already exists (this is OK).");
     }
 
     Serial.print("[esp-now] Gateway peer: ");
@@ -370,17 +401,31 @@ void setup() {
         Serial.println(json);
         Serial.println("────────────────────────────────");
 
+        // Check radio state before sending
+        Serial.print("[esp-now] Pre-send check — WiFi.status=");
+        Serial.print(WiFi.status());
+        Serial.print("  channel=");
+        Serial.print(WiFi.channel());
+        Serial.print("  payload_len=");
+        Serial.println(n);
+
         // Send over ESP-NOW
         esp_err_t result = esp_now_send(GATEWAY_MAC, (uint8_t*)json, n);
+        Serial.print("[esp-now] esp_now_send returned: ");
+        Serial.print(esp_err_to_name(result));
+        Serial.print(" (");
+        Serial.print(result);
+        Serial.println(")");
         if (result == ESP_OK) {
-            Serial.println("[esp-now] Packet queued.");
+            Serial.println("[esp-now] Packet queued — waiting for TX callback...");
         } else {
-            Serial.print("[esp-now] Send FAILED: ");
-            Serial.println(esp_err_to_name(result));
+            Serial.println("[esp-now] Send FAILED at queue stage!");
         }
 
-        // Give the radio time to transmit before deep sleep cuts power.
-        delay(100);
+        // Give the radio time to transmit before deep sleep kills it.
+        // esp_now_send is async — the TX callback fires asynchronously.
+        Serial.println("[esp-now] Waiting 200ms for TX to complete...");
+        delay(200);
     }
 
     reset_footfall();
