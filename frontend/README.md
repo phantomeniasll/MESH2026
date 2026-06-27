@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌳 BeTree — Citizen App (Frontend)
 
-## Getting Started
+Mobile-first **PWA** that lets anyone find a thirsty street tree, water it, and earn
+sensor-verified city rewards. Part of the [BeTree](../README.md) project · HackXplore 2026.
 
-First, run the development server:
+Built with **Next.js 16 · React 19 · TypeScript · Tailwind 4 · MapLibre GL**.
+
+---
+
+## What it does
+
+| Surface | What the user sees |
+|---------|--------------------|
+| **Map** | Full-screen MapLibre map of **126k** real Karlsruhe trees, coloured by thirst. Overlay toggle: soil-moisture vs urban-heat. "Locate me" + nearest-rescue routing. |
+| **Tree detail** | Species, age, last watered, a 7-day **moisture forecast strip**, and a soil-water visualization. |
+| **Scan & Verify** | QR scan / NFC tap to start a watering session. A live moisture chart climbs as the **real sensor** reports — cross the threshold → confetti. Rain or a fake tap → rejected, with a reason. |
+| **Rewards** | Spend earned credits on seed packets, museum entry, transit day-passes, priority Bürgeramt slots. |
+| **Impact** | Personal + citywide stats: trees watered, litres delivered, CO₂ proxy, streaks. |
+| **City** | Officials' dashboard — health overview, heatmaps, watering routes (`/city`). |
+
+State lives in a small **Zustand** store ([`src/store/useBetreeStore.ts`](src/store/useBetreeStore.ts));
+data comes from the FastAPI backend via typed clients in [`src/lib/api`](src/lib/api).
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Point it at a backend:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# .env.local
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000   # defaults to this if unset
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build && npm run start   # production
+npm run lint                     # eslint
+```
 
-## Learn More
+## Project structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/                 # Next.js app router
+│   ├── (tabs)/          # citizen tabs: map · rewards · impact · profile
+│   └── city/            # city officials' dashboard
+├── components/          # map · scan · tree · city · rewards · nav · ui
+├── lib/
+│   ├── api/             # typed fetch clients (trees, sensors, city, rewards…)
+│   ├── routing/         # nearest-tree routing helpers
+│   ├── heatmap.ts       # overlay heatmap generation
+│   └── constants.ts     # thresholds, demo config, Karlsruhe geo
+└── store/               # Zustand global store
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Key dependencies
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`maplibre-gl` + `react-map-gl` (vector map) · `@turf/turf` (geospatial) ·
+`@yudiel/react-qr-scanner` + `qrcode` (scan/verify) · `motion` (animation) ·
+`zustand` (state) · `vaul` + `sonner` (sheets & toasts) · `next-themes` (dark mode).
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See the [root README](../README.md) for the full product story and architecture.
