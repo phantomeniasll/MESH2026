@@ -12,7 +12,7 @@
 - **Tiny energy budget.** The node deep-sleeps and wakes ~every 15 min with the sensors power-gated off, drawing ~7 µA: on the order of **0.2 mAh/day (~60 mAh/year)** in the production design. A 5×5 cm solar cell is overkill, so it runs for years with no battery swap. *(The hackathon dev board draws more through its USB chip; the custom PCB hits these numbers.)*
 - **Data: free.** Open-Meteo / DWD weather costs nothing.
 - **Coverage: nearly free.** The hybrid model covers all **126k trees** from a few hundred sensors, so we don't pay for a sensor per tree.
-- **Rewards: existing city capacity**, not cash out the door (museum entry, transit pass, Bürgeramt slot).
+- **Rewards: existing city capacity**, not cash out the door (seed packets, museum entry, transit pass).
 
 ## What to say
 - "The cost isn't just a cheap sensor. Every single layer is cheap: the build, the radio, the power, the weather data, and the coverage."
