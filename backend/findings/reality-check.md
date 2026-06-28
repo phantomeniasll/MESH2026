@@ -25,10 +25,9 @@
 | **Predictive modeling** | None | "This tree will be critical in 6 hours at current rate" |
 | **Cost tracking** | Aggregate budget only | Per-tree cost of watering, per-tree savings from citizen labor |
 
-## Honest Assessment
+## Assessment
 
 **Weakness:** Tree protection (guards, pruning, root management) costs more than watering and isn't addressed by sensors. Be ready for this question.
 
 **Strength:** The city spends €1M/year watering on a fixed schedule with zero data feedback. Even a 20% reduction in wasted watering pays for the sensor network in year one. And the real win — preventing mature tree death — is worth €5k-15k per tree.
 
-**Pitch framing:** Don't say "we save money on water." Say "we save trees that would otherwise die in the next heat wave — and that saves millions."
