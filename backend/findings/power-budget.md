@@ -32,8 +32,6 @@ Sources: Espressif ESP32 Datasheet v4.4, practical measurements from randomnerdt
 
 **The bottleneck:** A CP2102 USB-to-UART chip draws 10 mA whenever powered. The AMS1117-3.3 LDO on most dev boards draws 2-5 mA quiescent. Together they consume 12-15 mA *regardless of what the ESP32 is doing*. The ESP32's 5 µA deep sleep is irrelevant — the dev board around it burns 2800× more current.
 
-**For the hackathon:** Use USB power. For the production roadmap: custom PCB with an MCP1700 LDO (1.6 µA quiescent) and no USB-serial chip.
-
 ### 1.3 Production Board Sleep Calculation (Roadmap)
 
 | Component | Sleep current | Source |
@@ -101,7 +99,7 @@ Total average current: ~14.0 mA
 2400 mAh ÷ 336 mAh/day = 7.1 days
 ```
 
-**Conclusion:** The dev board's quiescent draw dominates completely. WiFi wake adds <0.1% to the total. Battery life is 7 days regardless of what the ESP32 does. **Bring a USB power bank or wall adapter for the hackathon.**
+**Conclusion:** The dev board's quiescent draw dominates completely. WiFi wake adds <0.1% to the total. Battery life is 7 days regardless of what the ESP32 does. 
 
 ### 2.3 Scenario B: LoRaWAN on Production Board — Roadmap
 
@@ -346,5 +344,3 @@ This is the ideal operating condition for lithium batteries. Calendar aging (ele
 |-----------|-------|-----------|-------------------|
 | Battery | 402025 LiPo pouch, 150 mAh | **€1.50** | -€2.50 vs 18650 |
 | **Total BOM (qty 100)** | — | **€23.85** | Down from €26.35 |
-
-**The pitch slide math gets even better:** *"The battery is the size of a postage stamp. The sensor is the size of a marker pen. Push it into the ground, walk away. Come back in 5 years."*
