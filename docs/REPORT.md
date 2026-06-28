@@ -178,6 +178,7 @@ before a single tree is saved.
 | ESP32 + capacitive moisture + DHT11 + vibration + mic | **~€24 BOM** |
 | Connectivity (ESP-NOW mesh) | **€0 per node** (shared gateway) |
 | Power (solar + LiPo) | self-powered, no grid, ~zero maintenance |
+| Install + registration | ~5 min: stake, register in app, joins mesh; no specialist |
 
 ### 7.2 The order-of-magnitude argument
 
@@ -187,8 +188,8 @@ before a single tree is saved.
 | A **full summer** of citizen watering rewards to keep a tree alive (redeemable perks) | **up to ~€500** |
 | **Return on a single saved tree** | **~10–30×** |
 
-Reward catalogue (low marginal cost to the city): seed packets · museum entry · transit day-pass ·
-priority Bürgeramt appointment. The reward is mostly **existing city capacity**, not cash out the door.
+Reward catalogue (low marginal cost to the city): seed packets · museum entry · transit day-pass.
+The reward is mostly **existing city capacity**, not cash out the door.
 
 ### 7.3 Pilot budget (illustrative)
 
