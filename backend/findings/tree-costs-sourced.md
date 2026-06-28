@@ -1,7 +1,6 @@
 # Urban Tree Costs — Karlsruhe & German Cities
 
 **Research date:** June 26, 2026  
-**Context:** Pitch-ready cost figures for Wurzelwerk
 
 ---
 
