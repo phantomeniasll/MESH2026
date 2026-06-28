@@ -29,8 +29,8 @@ from vega.models.watering import Watering
 DEMO_TREES: list[dict[str, Any]] = [
     {
         "id": "KA-00001",
-        "name": "Marktplatz-Linde",
-        "species": "Tilia cordata",
+        "name": "Pachira Aquatica",
+        "species": "Pachira aquatica",
         "latitude": 49.0015270,
         "longitude": 8.3879422,
         "neighborhood": "Südweststadt",
@@ -41,8 +41,8 @@ DEMO_TREES: list[dict[str, Any]] = [
     },
     {
         "id": "KA-00002",
-        "name": "Schlossgarten-Eiche",
-        "species": "Quercus robur",
+        "name": "Cafeteria Plant",
+        "species": "Pachira aquatica",
         "latitude": 49.00163,
         "longitude": 8.38812,
         "neighborhood": "Innenstadt",
@@ -132,13 +132,6 @@ DEMO_REWARDS: list[dict[str, Any]] = [
         "stock": 20,
     },
     {
-        "name": "Priority Bürgeramt Slot",
-        "description": "Skip the queue at the Bürgeramt — next-day appointment.",
-        "points_cost": 500,
-        "category": "priority",
-        "stock": 10,
-    },
-    {
         "name": "Tree Plaque",
         "description": "Your name on a plaque by the tree you care for.",
         "points_cost": 1000,
@@ -158,13 +151,6 @@ DEMO_REWARDS: list[dict[str, Any]] = [
         "points_cost": 750,
         "category": "ceremony",
         "stock": 15,
-    },
-    {
-        "name": "Be Tree T-Shirt",
-        "description": "Limited edition Be Tree merch.",
-        "points_cost": 150,
-        "category": "merch",
-        "stock": 30,
     },
     {
         "name": "Museum Entry (ZKM)",

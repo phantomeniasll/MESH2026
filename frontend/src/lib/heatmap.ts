@@ -36,6 +36,29 @@ export function heatRgb(t: number): [number, number, number] {
   return t < 0.5 ? lerpColor(green, orange, t * 2) : lerpColor(orange, red, (t - 0.5) * 2);
 }
 
+/**
+ * Thirst ramp matching the individual tree dots (red dry → green healthy).
+ * Expects t = moisture/100 (absolute), so pass globalMinV:0, globalMaxV:100.
+ */
+export function thirstRgb(t: number): [number, number, number] {
+  const stops: Array<[number, [number, number, number]]> = [
+    [0.0, [220, 38, 38]],   // #DC2626
+    [0.2, [234, 88, 12]],   // #EA580C
+    [0.4, [202, 138, 4]],   // #CA8A04
+    [0.6, [101, 163, 13]],  // #65A30D
+    [1.0, [22, 163, 74]],   // #16A34A
+  ];
+  const x = Math.max(0, Math.min(1, t));
+  for (let i = 1; i < stops.length; i++) {
+    if (x <= stops[i][0]) {
+      const [t0, c0] = stops[i - 1];
+      const [t1, c1] = stops[i];
+      return lerpColor(c0, c1, (x - t0) / (t1 - t0 || 1));
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
 export function moistureRgb(t: number): [number, number, number] {
   const tan: [number, number, number] = [200, 180, 140];
   const mid: [number, number, number] = [125, 175, 220];
@@ -157,13 +180,21 @@ export function buildIdwRaster(
   const ctx = raw.getContext("2d")!;
   const img = ctx.createImageData(SIZE, SIZE);
   const range = maxV - minV || 1;
+  // Uniform edge feather: fade alpha toward all four borders so the overlay
+  // dissolves smoothly on every side (no straight rectangle edge, no central blob).
+  const featherPx = SIZE * 0.16;
   for (let i = 0; i < SIZE * SIZE; i++) {
     const t = Math.max(0, Math.min(1, (vals[i] - minV) / range));
     const [r, g, b] = colorFn(t);
+    const px = i % SIZE;
+    const py = (i / SIZE) | 0;
+    const dEdge = Math.min(px, SIZE - 1 - px, py, SIZE - 1 - py);
+    const f = Math.max(0, Math.min(1, dEdge / featherPx));
+    const fade = f * f * (3 - 2 * f); // smoothstep
     img.data[i * 4] = r;
     img.data[i * 4 + 1] = g;
     img.data[i * 4 + 2] = b;
-    img.data[i * 4 + 3] = alpha;
+    img.data[i * 4 + 3] = Math.round(alpha * fade);
   }
   ctx.putImageData(img, 0, 0);
 
@@ -174,17 +205,6 @@ export function buildIdwRaster(
   bctx.filter = `blur(${blurPx}px)`;
   bctx.drawImage(raw, 0, 0);
   bctx.filter = "none";
-
-  // Soft-feather the edges (they sit ~0.5·SIZE from centre) while keeping a wide
-  // opaque core, so it fades out at the borders without collapsing into a blob.
-  const cx = SIZE / 2, cy = SIZE / 2;
-  const grad = bctx.createRadialGradient(cx, cy, SIZE * 0.40, cx, cy, SIZE * 0.72);
-  grad.addColorStop(0, "rgba(0,0,0,1)");
-  grad.addColorStop(0.7, "rgba(0,0,0,0.85)");
-  grad.addColorStop(1, "rgba(0,0,0,0)");
-  bctx.globalCompositeOperation = "destination-in";
-  bctx.fillStyle = grad;
-  bctx.fillRect(0, 0, SIZE, SIZE);
 
   return {
     url: blurred.toDataURL(),

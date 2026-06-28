@@ -31,10 +31,16 @@ export function TimeSeriesChart({
     const PAD = { top: 8, right: 8, bottom: 24, left: 36 };
     const inner = { w: W - PAD.left - PAD.right, h: H - PAD.top - PAD.bottom };
 
-    // Treat null AND 0 as "no reading": the newest buckets often carry 0 because
-    // sensors haven't reported yet. Excluding them keeps the line from crashing to
-    // the axis and from compressing the visible range (matches ProfileChart).
-    const realVals = series.map((s) => s.value).filter((v): v is number => v !== null && v !== 0);
+    // Treat null, 0, AND partial buckets as "no reading". The newest buckets often
+    // carry 0 (sensors haven't reported) or a fraction of a real value (still
+    // filling in); both crash the line to the axis. A point counts as missing if
+    // it's below 10% of the average of the real (non-null, non-zero) values.
+    const nonZeroVals = series.map((s) => s.value).filter((v): v is number => v !== null && v !== 0);
+    const avgVal = nonZeroVals.length ? nonZeroVals.reduce((a, b) => a + b, 0) / nonZeroVals.length : 0;
+    const floor = avgVal * 0.1;
+    const missing = (v: number | null) => v === null || v === 0 || v < floor;
+
+    const realVals = nonZeroVals.filter((v) => v >= floor);
     const minV = realVals.length ? Math.min(...realVals) : 0;
     const maxV = realVals.length ? Math.max(...realVals) : 1;
     const range = maxV - minV || 1;
@@ -42,14 +48,12 @@ export function TimeSeriesChart({
     const toX = (i: number) => PAD.left + (i / Math.max(series.length - 1, 1)) * inner.w;
     const toY = (v: number) => PAD.top + inner.h - ((v - minV) / range) * inner.h;
 
-    // Build path, lifting the pen over missing points (null or 0) rather than
-    // drawing down to the axis.
+    // Build path, lifting the pen over missing points rather than drawing to the axis.
     let path = "";
     for (let i = 0; i < series.length; i++) {
       const v = series[i].value;
-      if (v === null || v === 0) continue;
-      const prev = series[i - 1]?.value ?? null;
-      const cmd = path === "" ? "M" : (prev === null || prev === 0 ? " M" : " L");
+      if (v === null || v === 0 || v < floor) continue; // inline so TS narrows v to number
+      const cmd = path === "" ? "M" : (missing(series[i - 1]?.value ?? null) ? " M" : " L");
       path += `${cmd} ${toX(i)},${toY(v)}`;
     }
 

@@ -43,13 +43,14 @@ export default function RewardsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const byPrice = (list: Reward[]) => [...list].sort((a, b) => a.cost - b.cost);
     listRewards()
       .then((dtos) => {
         const active = dtos.filter((d) => d.is_active).map(toViewReward);
-        setRewards(active.length > 0 ? active : REWARDS);
+        setRewards(byPrice(active.length > 0 ? active : REWARDS));
       })
       .catch(() => {
-        setRewards(REWARDS);
+        setRewards(byPrice(REWARDS));
       })
       .finally(() => setLoading(false));
   }, []);

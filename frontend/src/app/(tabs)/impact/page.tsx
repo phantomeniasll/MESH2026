@@ -64,7 +64,7 @@ export default function ImpactPage() {
   const co2kg = count * 8;
   const coolingKwh = Math.round(liters * 0.7);
   const streakVal = profile?.current_streak ?? store.streak;
-  const longestStreak = profile?.longest_streak ?? 0;
+  const longestStreak = Math.max(profile?.longest_streak ?? 0, streakVal);
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">

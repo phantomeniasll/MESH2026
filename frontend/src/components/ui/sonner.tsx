@@ -39,6 +39,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast: "cn-toast",
+          // Default description (e.g. the plant/species name) renders in a faded
+          // grey; bump it to a readable dark grey.
+          description: "!text-foreground/80",
         },
       }}
       {...props}

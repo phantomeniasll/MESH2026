@@ -40,14 +40,4 @@ export const REWARDS: Reward[] = [
     icon: "Train",
     category: "mobility",
   },
-  {
-    id: "amtbonus",
-    title: "Priority Bürgeramt Slot",
-    titleDe: "Priority-Termin Bürgeramt",
-    description: "Skip the queue — get a next-day appointment at the Bürgeramt.",
-    descriptionDe: "Warteschlange überspringen — nächster-Tag-Termin im Bürgeramt.",
-    cost: 100,
-    icon: "CalendarCheck",
-    category: "civic",
-  },
 ];

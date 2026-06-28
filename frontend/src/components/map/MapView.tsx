@@ -14,9 +14,8 @@ import { OverlayPill } from "./OverlayPill";
 import { LocateButton } from "./LocateButton";
 import { TreeSheet } from "@/components/tree/TreeSheet";
 import type { Overlay } from "@/store/useBetreeStore";
-import type { GeoJSONSource } from "maplibre-gl";
 import { Siren, X, Navigation2, AlertTriangle, Building2 } from "lucide-react";
-import { buildIdwRaster, colorFnFor, type HeatPoint } from "@/lib/heatmap";
+import { buildIdwRaster, colorFnFor, thirstRgb, type HeatPoint } from "@/lib/heatmap";
 import { DEMO_TREE_ID, demoDisplayMoisture } from "@/lib/constants";
 
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
@@ -25,7 +24,6 @@ const MAP_STYLE = MAPTILER_KEY
   : "https://tiles.openfreemap.org/styles/positron";
 
 const mapLibPromise = import("maplibre-gl");
-const FOREST = "#1B5732";
 // Karlsruhe center fallback when no user location
 const KA_LAT = 49.0069;
 const KA_LNG = 8.4037;
@@ -69,6 +67,9 @@ export default function MapView() {
 
   // Route state — geometry stored separately; routeFC gated on navigateTarget being set
   const [routeGeoJSON, setRouteGeoJSON] = useState<GeoJSON.LineString | null>(null);
+  // Tracks the target we've already flown to, so the camera only animates once
+  // when navigation starts (not on every location update).
+  const flownTargetRef = useRef<typeof navigateTarget>(null);
 
   // Rescue panel state
   const [rescueOpen, setRescueOpen] = useState(false);
@@ -101,9 +102,13 @@ export default function MapView() {
     if (!navigateTarget) return; // routeFC is gated on navigateTarget via useMemo below
     const lat = userLat ?? KA_LAT;
     const lng = userLng ?? KA_LNG;
+    // Only fly the camera once per navigation start — not on every geolocation
+    // update, otherwise manual zoom-out keeps getting snapped back to zoom 16.
+    const isNewTarget = flownTargetRef.current !== navigateTarget;
     fetchOsrmRoute(lat, lng, navigateTarget.lat, navigateTarget.lng).then((geom) => {
       setRouteGeoJSON(geom);
-      if (geom && mapRef.current) {
+      if (geom && mapRef.current && isNewTarget) {
+        flownTargetRef.current = navigateTarget;
         mapRef.current.getMap().flyTo({
           center: [navigateTarget.lng, navigateTarget.lat],
           zoom: 16,
@@ -241,6 +246,24 @@ export default function MapView() {
     return buildIdwRaster(points, colorFnFor(metric));
   }, [overlay, treesFC]);
 
+  // Zoomed-out base: a smoothed thirst-coloured field (matches the dot ramp) so
+  // far-out views show the coloured overview cheaply instead of 126k laggy dots.
+  // Only when no metric overlay is active (that overlay covers zoomed-out itself).
+  const baseRaster = useMemo(() => {
+    if (overlay !== "none" || !treesFC) return null;
+    const points: HeatPoint[] = treesFC.features.map((f) => ({
+      lng: f.geometry.coordinates[0] as number,
+      lat: f.geometry.coordinates[1] as number,
+      value: f.properties.moisture,
+    }));
+    return buildIdwRaster(points, thirstRgb, {
+      globalMinV: 0,
+      globalMaxV: 100,
+      blurPx: 2,
+      size: 220,
+    });
+  }, [overlay, treesFC]);
+
   const handleMapClick = useCallback(
     (e: MapMouseEvent) => {
       const map = mapRef.current?.getMap();
@@ -278,24 +301,6 @@ export default function MapView() {
         };
         setSelectedTree(syntheticTree);
         setSheetOpen(true);
-        return;
-      }
-
-      const clusterFeatures = map.queryRenderedFeatures(bbox, {
-        layers: ["clusters"],
-      });
-      if (clusterFeatures.length > 0) {
-        const clusterId = clusterFeatures[0].properties?.cluster_id as number;
-        const source = map.getSource("trees") as GeoJSONSource | undefined;
-        if (source) {
-          source.getClusterExpansionZoom(clusterId).then((zoom) => {
-            if (zoom == null) return;
-            const coords = (
-              clusterFeatures[0].geometry as GeoJSON.Point
-            ).coordinates as [number, number];
-            map.flyTo({ center: coords, zoom, duration: 500 });
-          }).catch(() => {});
-        }
       }
     },
     []
@@ -333,9 +338,18 @@ export default function MapView() {
         }}
         cursor="auto"
         attributionControl={false}
-        interactiveLayerIds={["clusters", "unclustered-trees"]}
+        interactiveLayerIds={["unclustered-trees"]}
       >
         {/* IDW raster overlay */}
+        {baseRaster && (
+          <Source type="image" url={baseRaster.url} coordinates={baseRaster.coords}>
+            <Layer id="base-raster" type="raster" maxzoom={16} paint={{
+              "raster-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0.9, 15, 0.7, 16, 0],
+              "raster-fade-duration": 0,
+            }} />
+          </Source>
+        )}
+
         {overlayImage && (
           <Source type="image" url={overlayImage.url} coordinates={overlayImage.coords}>
             <Layer id="overlay-raster" type="raster" paint={{ "raster-opacity": 0.82, "raster-fade-duration": 0 }} />
@@ -359,27 +373,23 @@ export default function MapView() {
           </Source>
         )}
 
-        {/* Tree data — after user-location so dots render on top of the halo */}
+        {/* Tree data — dot-density: every tree is one status-coloured dot, tiny
+            when zoomed out (density itself shows where trees are, red speckle =
+            thirsty pockets) and growing into tappable dots as you zoom in. */}
         {treesFC && (
-          <Source id="trees" type="geojson" data={treesFC} promoteId="id" cluster clusterRadius={50} clusterMaxZoom={14}>
-            <Layer id="clusters" type="circle" filter={["has", "point_count"]} paint={{
-              "circle-color": FOREST,
-              "circle-radius": ["step", ["get", "point_count"], 18, 10, 24, 50, 30],
-              "circle-opacity": 0.9,
-            }} />
-            <Layer id="cluster-count" type="symbol" filter={["has", "point_count"]}
-              layout={{ "text-field": ["get", "point_count_abbreviated"], "text-size": 13, "text-font": ["Noto Sans Bold"] }}
-              paint={{ "text-color": "#FEF9E0" }}
-            />
-            <Layer id="unclustered-trees" type="circle" filter={["!", ["has", "point_count"]]} paint={{
+          <Source id="trees" type="geojson" data={treesFC} promoteId="id">
+            <Layer id="unclustered-trees" type="circle" minzoom={15} paint={{
               "circle-color": [
                 "case",
                 ["boolean", ["feature-state", "watered"], false], "#16A34A",
                 ["interpolate", ["linear"], ["get", "moisture"],
                   0, "#DC2626", 20, "#EA580C", 40, "#CA8A04", 60, "#65A30D", 100, "#16A34A"],
               ],
-              "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 7, 15, 9, 18, 11],
-              "circle-stroke-width": 1.5,
+              "circle-radius": ["interpolate", ["linear"], ["zoom"],
+                15, 4, 16, 6, 18, 7],
+              // Crossfade in as the zoomed-out base raster fades out.
+              "circle-opacity": ["interpolate", ["linear"], ["zoom"], 15, 0, 16, 0.95, 17, 1],
+              "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 15.5, 0, 16.5, 1, 17.5, 1.5],
               "circle-stroke-color": "#FEF9E0",
             }} />
           </Source>
@@ -415,7 +425,7 @@ export default function MapView() {
       <div className="absolute bottom-10 right-4 z-10 flex flex-col items-end gap-2">
         {navigateTarget && (
           <button
-            onClick={() => { setNavigateTarget(null); setRouteGeoJSON(null); }}
+            onClick={() => { setNavigateTarget(null); setRouteGeoJSON(null); flownTargetRef.current = null; }}
             className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border border-border rounded-full px-3 py-2 text-xs font-medium shadow-md text-muted-foreground hover:text-destructive transition-colors"
           >
             <X size={12} /> Clear route

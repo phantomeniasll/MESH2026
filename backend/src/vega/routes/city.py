@@ -43,16 +43,26 @@ def _to_db(level: float | None) -> float | None:
     return round(40.0 + level * 0.45, 1)
 
 
+# Pregenerated/seed data ends at the fixed reference date (see seed_readings.py:
+# REFERENCE = 2026-06-27). The live demo sensor ingests readings after this with
+# partial, mostly-zero values, so the dashboard ignores anything past this anchor.
+PREGENERATED_ANCHOR = datetime(2026, 6, 27, 23, 59, 59, tzinfo=UTC)
+
+
 async def _anchor(db: AsyncSession) -> datetime:
-    """Return MAX(recorded_at) across all readings — clock-independent current window."""
-    result = await db.execute(select(func.max(Reading.recorded_at)))
+    """The dashboard's 'now': the latest pregenerated reading (≤ the seed reference).
+    Live-sensor readings arrive after this and are partial/zero, so they're excluded."""
+    result = await db.execute(
+        select(func.max(Reading.recorded_at)).where(Reading.recorded_at <= PREGENERATED_ANCHOR)
+    )
     val = result.scalar_one_or_none()
-    return val or datetime.now(UTC)
+    return val or PREGENERATED_ANCHOR
 
 
-async def _window_filter(db: AsyncSession, days: int):
+async def _window_filter(db: AsyncSession, days: int) -> tuple[datetime, datetime]:
+    """Return (since, anchor) — a closed window, so live data past the anchor is excluded."""
     anchor = await _anchor(db)
-    return anchor - timedelta(days=days)
+    return anchor - timedelta(days=days), anchor
 
 
 # ── Overview ──────────────────────────────────────────────────────────────────
@@ -67,23 +77,27 @@ async def city_overview(db: AsyncSession = Depends(get_db)):
     # Trees with any reading
     monitored_result = await db.execute(
         select(func.count(func.distinct(Reading.tree_id)))
+        .where(Reading.recorded_at <= anchor)
     )
     trees_monitored = monitored_result.scalar() or 0
 
     # Active sensors in last 24h
     active_result = await db.execute(
         select(func.count(func.distinct(Reading.tree_id)))
-        .where(Reading.recorded_at >= window_24h)
+        .where(Reading.recorded_at >= window_24h, Reading.recorded_at <= anchor)
     )
     active_sensors_24h = active_result.scalar() or 0
 
-    total_result = await db.execute(select(func.count(Reading.id)))
+    total_result = await db.execute(
+        select(func.count(Reading.id)).where(Reading.recorded_at <= anchor)
+    )
     total_readings = total_result.scalar() or 0
 
     # Neighborhoods covered
     nb_result = await db.execute(
         select(func.count(func.distinct(Tree.neighborhood)))
         .join(Reading, Reading.tree_id == Tree.id)
+        .where(Reading.recorded_at <= anchor)
     )
     neighborhoods_covered = nb_result.scalar() or 0
 
@@ -100,7 +114,7 @@ async def city_overview(db: AsyncSession = Depends(get_db)):
             func.avg(Reading.temperature).label("heat"),
             func.avg(Reading.moisture).label("moisture"),
             func.sum(Reading.footfall_count).label("activity"),
-        ).where(Reading.recorded_at >= window_7d)
+        ).where(Reading.recorded_at >= window_7d, Reading.recorded_at <= anchor)
     )
     row = curr.mappings().one()
 
@@ -131,7 +145,7 @@ async def city_map(
     db: AsyncSession = Depends(get_db),
 ):
     """Per-tree aggregated value for IDW heatmap rendering."""
-    since = await _window_filter(db, days)
+    since, anchor = await _window_filter(db, days)
     col = _METRIC_COL[metric]
 
     if metric in _SUM_METRICS:
@@ -149,7 +163,7 @@ async def city_map(
             agg.label("value"),
         )
         .join(Tree, Reading.tree_id == Tree.id)
-        .where(Reading.recorded_at >= since)
+        .where(Reading.recorded_at >= since, Reading.recorded_at <= anchor)
         .group_by(Tree.id, Tree.name, Tree.latitude, Tree.longitude, Tree.neighborhood)
     )
     rows = result.all()
@@ -182,7 +196,7 @@ async def city_timeseries(
     db: AsyncSession = Depends(get_db),
 ):
     """Time-bucketed aggregated sensor data for line/area charts."""
-    since = await _window_filter(db, days)
+    since, anchor = await _window_filter(db, days)
     col = _METRIC_COL[metric]
 
     fmt = "%Y-%m-%d" if bucket == "day" else "%Y-%m-%dT%H:00:00"
@@ -197,7 +211,7 @@ async def city_timeseries(
         min_expr = func.min(getattr(Reading, col))
         max_expr = func.max(getattr(Reading, col))
 
-    filters = [Reading.recorded_at >= since]
+    filters = [Reading.recorded_at >= since, Reading.recorded_at <= anchor]
     if tree_id:
         filters.append(Reading.tree_id == tree_id)
     if neighborhood:
@@ -258,7 +272,7 @@ async def city_profile(
     db: AsyncSession = Depends(get_db),
 ):
     """Average by hour-of-day (0-23) or day-of-week (0=Mon, 6=Sun). Powers rush-hour and weekday/weekend charts."""
-    since = await _window_filter(db, days)
+    since, anchor = await _window_filter(db, days)
     col = _METRIC_COL[metric]
 
     if dimension == "hour_of_day":
@@ -277,7 +291,7 @@ async def city_profile(
 
     value_expr = func.avg(getattr(Reading, col))
 
-    filters = [Reading.recorded_at >= since]
+    filters = [Reading.recorded_at >= since, Reading.recorded_at <= anchor]
     if tree_id:
         filters.append(Reading.tree_id == tree_id)
     if neighborhood:
@@ -332,7 +346,7 @@ async def city_comparison(
     window_start = anchor - timedelta(days=days)
     col = _METRIC_COL[metric]
 
-    filters = [Reading.recorded_at >= window_start]
+    filters = [Reading.recorded_at >= window_start, Reading.recorded_at <= anchor]
     if tree_id:
         filters.append(Reading.tree_id == tree_id)
     if neighborhood:
@@ -417,7 +431,7 @@ async def city_map_frames(
             agg_fn.label("val"),
         )
         .join(Tree, Tree.id == Reading.tree_id)
-        .where(Reading.recorded_at >= start)
+        .where(Reading.recorded_at >= start, Reading.recorded_at <= anchor)
         .group_by(func.strftime("%Y-%m-%d", Reading.recorded_at), Reading.tree_id)
         .order_by(func.strftime("%Y-%m-%d", Reading.recorded_at), Reading.tree_id)
     )

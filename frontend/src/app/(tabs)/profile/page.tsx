@@ -114,6 +114,7 @@ export default function ProfilePage() {
   const nbhd = profile?.neighborhood ?? null;
   const totalPoints = profile?.total_points ?? credits;
   const currentStreak = profile?.current_streak ?? streak;
+  const bestStreak = Math.max(profile?.longest_streak ?? 0, currentStreak);
   const level = profile?.level ?? 1;
   const initials = displayName2.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const prevThresh = ((level - 1) * (level - 1)) * 100;
@@ -292,7 +293,7 @@ export default function ProfilePage() {
           <p className="text-xs text-muted-foreground mt-0.5">Trees adopted</p>
         </div>
         <div className="bg-card border border-border rounded-xl p-3 text-center">
-          <p className="font-heading text-2xl font-bold text-primary">{profile?.longest_streak ?? 0}</p>
+          <p className="font-heading text-2xl font-bold text-primary">{bestStreak}</p>
           <p className="text-xs text-muted-foreground mt-0.5">Best streak</p>
         </div>
         <div className="bg-card border border-border rounded-xl p-3 text-center">
