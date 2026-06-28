@@ -1,4 +1,4 @@
-# Wurzelwerk — Value Proposition Canvas
+# BeTree — Value Proposition Canvas
 
 **Date:** June 27, 2026
 **Tool:** Strategyzer Value Proposition Canvas
