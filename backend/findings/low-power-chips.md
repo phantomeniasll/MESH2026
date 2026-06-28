@@ -74,4 +74,3 @@ One node is the "gateway" — it has both ESP-NOW and WiFi. It collects all mesh
 | **Gateway node** (one) | ESP32 + WiFi | ESP-NOW in, MQTT out | Mains or large battery |
 | **Future** | ESP32-C6 + LoRa | LoRaWAN TTN | Decades on AA |
 
-**For the hackathon:** Start with all ESP32s on WiFi for simplicity (hour 0-3). Once the pipeline works, switch to ESP-NOW mesh (hour 8-10) and show the battery math on a roadmap slide. You don't need to build the full battery setup — just demonstrate ESP-NOW latency and explain the power model.
