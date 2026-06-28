@@ -21,7 +21,7 @@
 | Quantify carbon capture for climate reporting | Fixed watering schedule wastes water and diesel | Public transparency dashboard |
 | | 3-5 year establishment watering costs ~€1,000 per new tree | Citizen labor at zero marginal cost |
 
-### Value Map — How Wurzelwerk Helps
+### Value Map — How BeTree Helps
 
 | Pain Relievers | Gain Creators |
 |---------------|---------------|
@@ -57,7 +57,7 @@
 | Meet neighbors | Can't find trees that need care near them | Real city benefits: priority Bürgeramt, free day pass |
 | | Trees dying in their neighborhood → feel powerless | Be part of something: "23 caretakers for this tree this month" |
 
-### Value Map — How Wurzelwerk Helps
+### Value Map — How BeTree Helps
 
 | Pain Relievers | Gain Creators |
 |---------------|---------------|
@@ -113,4 +113,4 @@
 
 ### The Core Value Proposition (One Sentence)
 
-> **"Wurzelwerk tells the city which trees need water and tells citizens which trees need them — and rewards them for it."**
+> **"BeTree tells the city which trees need water and tells citizens which trees need them — and rewards them for it."**
