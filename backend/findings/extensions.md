@@ -46,7 +46,7 @@ Trees fall. They damage cars, buildings, people. Cities carry liability.
 
 **What you'd build:** Tilt sensor detects leaning trees before they fall. Soil moisture data proves the tree was properly maintained. "Before the storm, our system flagged Tree #3147 as stable. After the claim, we have the data to prove it."
 
-**Why it wins:** Unexpected angle. Nobody thinks "insurance" at a hackathon. Practical cost savings. Data that lawyers and insurers actually want.
+**Why it wins:** Unexpected angle. Nobody thinks "insurance". Practical cost savings. Data that lawyers and insurers actually want.
 
 ---
 
@@ -76,20 +76,8 @@ Old trees have stories. Make them visible.
 
 **What you'd build:** "This oak was planted in 1892. It survived two world wars. 847 citizens have watered it. Here's every photo ever taken of it." QR code on the tree. Citizen-submitted photos and stories. A living archive.
 
-**Why it wins:** Emotional. No other team will do this. Makes citizens care about trees as individuals, not statistics.
+**Why it wins:** Emotional, makes citizens care about trees as individuals, not statistics.
 
 ---
 
-## Quick Decision: What to Pitch
 
-| Extension | Wow Factor | Buildable in 36h | Fits R&D Jury |
-|-----------|-----------|-----------------|---------------|
-| Tree equity | ⭐⭐⭐⭐⭐ | ✅ (just data viz) | ⭐⭐⭐ |
-| Carbon credits | ⭐⭐⭐⭐ | ✅ (methodology exists) | ⭐⭐⭐⭐ |
-| Digital twin | ⭐⭐⭐⭐⭐ | ⚠️ (keep simple) | ⭐⭐⭐⭐⭐ |
-| Insurance | ⭐⭐⭐ | ✅ | ⭐⭐⭐⭐⭐ |
-| Root protection | ⭐⭐⭐⭐ | ⚠️ (modeling) | ⭐⭐⭐⭐⭐ |
-| Pollen forecast | ⭐⭐⭐ | ✅ | ⭐⭐⭐ |
-| Tree heritage | ⭐⭐⭐⭐ | ✅ | ⭐⭐ |
-
-**Recommended:** Lead with **digital twin + carbon credits**. "We built the operating system for Karlsruhe's urban canopy. It predicts tree survival, optimizes watering, and generates carbon revenue. Here's a simulation of the next heat wave."
