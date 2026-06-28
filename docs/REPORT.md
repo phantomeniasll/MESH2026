@@ -11,7 +11,7 @@ Citizen app `betree.me` · API `api.betree.me`
 
 German cities are now **legally required** (Bundes-Klimaanpassungsgesetz) to measure and act on
 heat and drought, but they have **zero per-tree data**. Karlsruhe alone has tens of thousands of
-street trees on a ~€1M/year watering budget, watered on fixed truck routes. That watering is slow,
+street trees, watered on fixed truck routes. That watering is slow,
 labour-intensive and expensive, and without per-tree data the routes inevitably miss some of the
 trees that are actually drying out, so those trees die. A young tree that dies costs
 **€5,000–15,000** to replace.
@@ -19,7 +19,7 @@ trees that are actually drying out, so those trees die. A young tree that dies c
 **BeTree closes two gaps at once:**
 
 1. **Real per-tree data** from a cheap solar ESP32 mesh sensor: soil moisture, temperature,
-   footfall and noise from one €24 build.
+   an activity index and noise from one €24 build.
 2. **A verified citizen action loop**: people find a thirsty tree in the app, water it, and the
    *sensor confirms a real moisture rise* (rain cross-checked). No honor system. Verified care
    earns credits redeemable for real city perks.
@@ -37,7 +37,7 @@ saves where it pays off most: the young trees that die fastest and that voluntee
 | **Self-built prototype** | We 3D-designed & printed the **"Sprig"** enclosure and assembled it with off-the-shelf sensors, some bought **Saturday morning in a Karlsruhe shop**. It's live in a tree |
 | **Live data** | **60,000+** real readings from **two live nodes**: one mesh gateway, one low-power sensor node (KA-00001 / KA-00002) |
 | **Real city** | **126,434** actual Karlsruhe trees (open cadastre) on the live map |
-| **Real model** | FAO-56 soil-water balance + Open-Meteo/DWD weather, reading **root-zone depth** |
+| **Real model** | Hybrid FAO-56 water balance fusing Open-Meteo/DWD weather with **our live sensor data**, reading root-zone depth |
 | **Shipped** | Deployed PWA + FastAPI, green CI (ruff · mypy · pytest, Python 3.11–3.13) |
 
 ---
@@ -50,7 +50,7 @@ saves where it pays off most: the young trees that die fastest and that voluntee
   no per-tree data they miss some of the trees that are actually drying out. Establishment-phase
   trees (age ≤ 5) die fastest and cost the most to replace.
 - **Existing citizen apps run on trust.** "I watered this tree": self-reported, unverifiable,
-  gameable. A €1M problem running on a paper receipt.
+  gameable. An expensive, city-scale problem running on a paper receipt.
 
 ## 3. The solution
 
@@ -58,9 +58,9 @@ A three-sided platform on one shared data layer:
 
 - **Citizens** get a mobile PWA: a live map of every tree's thirst, turn-by-turn to the nearest
   rescue, QR/NFC tap-to-water, a live moisture chart, confetti on verified success, and a reward shop.
-- **The city** gets a dashboard: health overview, footfall and heat heatmaps, watering-route hints,
+- **The city** gets a dashboard: health overview, activity-index and heat heatmaps, watering-route hints,
   and an exportable audit trail of every verified watering.
-- **Five departments** get continuous street-level data (water, heat, footfall, noise, storm tilt)
+- **Five departments** get continuous street-level data (water, heat, activity index, noise, storm tilt)
   as a *side effect* of the tree network.
 
 ---
@@ -79,8 +79,8 @@ We deliberately built **down the whole stack**, not just a pretty front end:
 - **Backend.** FastAPI + async SQLAlchemy, sensor ingest, tree/forecast/rescue endpoints, gamification,
   rewards, city dashboard, with **60k+ real readings** in the DB and the **126k-tree** Karlsruhe
   cadastre on the map.
-- **Model.** A FAO-56 soil-water balance (a standard agronomic water-accounting method) coupled to
-  live Open-Meteo / DWD weather.
+- **Model.** A **hybrid** model: a FAO-56 soil-water balance (a standard agronomic water-accounting
+  method) that fuses live Open-Meteo / DWD weather with our own sensor readings.
 - **App.** A deployed, installable PWA with the full citizen + city experience.
 
 ![Sprig, our 3D-printed sensor node, live in a tree](../3d/SprigInTree.jpeg)
@@ -97,7 +97,7 @@ We deliberately built **down the whole stack**, not just a pretty front end:
 |--------|----------|------------|
 | Capacitive soil moisture | Root-zone hydration | *Which trees need water now?* |
 | DHT11 temp + humidity | Per-tree microclimate | Urban heat-island mapping |
-| Vibration / shock | Footfall + storm tilt | Pedestrian counts · storm-damage alerts |
+| Vibration / shock | Activity index + storm tilt | Pedestrian activity · storm-damage alerts |
 | Microphone | Ambient sound level | Real-time noise map |
 | Solar + LiPo | Self-powered | Deploy-and-forget |
 
@@ -119,8 +119,8 @@ zone gains and loses) driven by free weather from **Open-Meteo** (an open weathe
 - **Depth** = the model explicitly pulls Open-Meteo's modelled **deep-soil moisture (3–9 cm, 9–27 cm)**
   as a physical prior, so it reasons about the root zone, not just the skin of the soil.
 
-The model is **anchored to a real sensor where one exists, and inferred from weather physics
-everywhere else.** That is the key to scale: **a few hundred calibration sensors ground-truth a
+The model is **hybrid: it fuses our live sensor data with weather physics**, anchored to a real
+sensor where one exists and inferred from physics everywhere else. That is the key to scale: **a few hundred calibration sensors ground-truth a
 physical model that then predicts water stress for all 126,000 trees**, sensored and unsensored
 alike. It is also how we decide where the hardware actually goes:
 
@@ -130,8 +130,7 @@ alike. It is also how we decide where the hardware actually goes:
   cost the most to replace, and they are exactly where citizen watering pays off. So we instrument
   them densely and point people at them.
 
-Honest about uncertainty: confidence drops with distance from the nearest sensor, and the map can show
-that. *Sparse hardware for citywide coverage, dense hardware where lives are actually on the line.*
+*Sparse hardware for citywide coverage, dense hardware where lives are actually on the line.*
 
 > We present the model as **"physics-based, calibrates as sensors deploy"**: the constants are
 > honest physical estimates, not a trained accuracy number we can't yet back.
