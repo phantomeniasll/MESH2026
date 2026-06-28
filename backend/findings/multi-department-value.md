@@ -1,7 +1,7 @@
 # Multi-Department Value Analysis — One Sensor Box, Five Ämter
 
 **Date:** June 27, 2026
-**Context:** The Wurzelwerk sensor box is not just a tree moisture monitor. The accelerometer, microphone, temperature, and humidity sensors produce data that serves departments across the city administration. One deployment, five use cases, zero additional hardware cost.
+**Context:** The BeTree sensor box is not just a tree moisture monitor. The accelerometer, microphone, temperature, and humidity sensors produce data that serves departments across the city administration. One deployment, five use cases, zero additional hardware cost.
 
 ---
 
@@ -28,9 +28,9 @@ All transmitted via LoRaWAN (roadmap) or WiFi/ESP-NOW (hackathon demo). Stored i
 
 **Question they can now answer:** "Which of our 50,000 trees need water right now — not which ones are on today's schedule?"
 
-**Before Wurzelwerk:** Water on fixed schedule. Visual drive-by inspection. Citizen complaints.
+**Before BeTree:** Water on fixed schedule. Visual drive-by inspection. Citizen complaints.
 
-**After Wurzelwerk:** Real-time moisture data per tree. Only dispatch trucks to trees that need water. Citizen watering tracked and rewarded.
+**After BeTree:** Real-time moisture data per tree. Only dispatch trucks to trees that need water. Citizen watering tracked and rewarded.
 
 **Cost impact:** ~€500k-1M/year watering budget optimization. Avoided tree replacement costs (€300-1,500 per tree planted, plus 3-5 year establishment watering ~€1,000/tree).
 
@@ -44,9 +44,9 @@ All transmitted via LoRaWAN (roadmap) or WiFi/ESP-NOW (hackathon demo). Stored i
 
 **Question they can now answer:** "We pedestrianized Kaiserstraße in 2025. Did foot traffic increase? In which sections? At what times of day?"
 
-**Before Wurzelwerk:** Manual pedestrian counts (expensive, one-off studies). No continuous data. No before/after baseline for most streets.
+**Before BeTree:** Manual pedestrian counts (expensive, one-off studies). No continuous data. No before/after baseline for most streets.
 
-**After Wurzelwerk:** Continuous footfall data from every tree sensor on every street. Granular: per 15-minute interval. Historical: baseline exists before any intervention.
+**After BeTree:** Continuous footfall data from every tree sensor on every street. Granular: per 15-minute interval. Historical: baseline exists before any intervention.
 
 **Concrete example:** "Before pedestrianization, Kaiserstraße plane trees registered 3,200 steps/day. After: 8,700 steps/day. Peak: 12,000 on Saturdays. The investment paid off."
 
@@ -60,9 +60,9 @@ All transmitted via LoRaWAN (roadmap) or WiFi/ESP-NOW (hackathon demo). Stored i
 
 **Question they can now answer:** "We introduced Tempo 30 on the B36. Did it reduce noise in adjacent residential streets? By how many decibels?"
 
-**Before Wurzelwerk:** One DWD weather station (airport). One-off noise measurement campaigns. No continuous microclimate data. No per-street temperature data.
+**Before BeTree:** One DWD weather station (airport). One-off noise measurement campaigns. No continuous microclimate data. No per-street temperature data.
 
-**After Wurzelwerk:** 50,000 distributed noise sensors. 50,000 distributed temperature sensors. Real data on urban heat island effect per street. Noise maps updated in real time, not every 5 years.
+**After BeTree:** 50,000 distributed noise sensors. 50,000 distributed temperature sensors. Real data on urban heat island effect per street. Noise maps updated in real time, not every 5 years.
 
 **Concrete example:** "Südstadt-Ost is 4.8°C hotter than Weststadt on summer afternoons. This correlates with 60% less tree canopy cover. Priority planting zone identified."
 
@@ -76,9 +76,9 @@ All transmitted via LoRaWAN (roadmap) or WiFi/ESP-NOW (hackathon demo). Stored i
 
 **Question they can now answer:** "During the last heat wave, which neighborhoods exceeded 35°C at street level? Where should we open cooling centers?"
 
-**Before Wurzelwerk:** Airport temperature only. No street-level data. Heat warnings are city-wide, not neighborhood-specific.
+**Before BeTree:** Airport temperature only. No street-level data. Heat warnings are city-wide, not neighborhood-specific.
 
-**After Wurzelwerk:** Per-street temperature data. Identify heat islands in real time. Target cooling center placement. Warn vulnerable populations (elderly, children) before heat peaks.
+**After BeTree:** Per-street temperature data. Identify heat islands in real time. Target cooling center placement. Warn vulnerable populations (elderly, children) before heat peaks.
 
 **Concrete example:** "In the July 2025 heat wave, Oststadt street-level temperatures reached 41°C while the airport station reported 36°C. Three neighborhoods exceeded 38°C for 6+ hours. Cooling centers opened in those neighborhoods first."
 
@@ -90,9 +90,9 @@ All transmitted via LoRaWAN (roadmap) or WiFi/ESP-NOW (hackathon demo). Stored i
 
 **Question they can now answer:** "After last night's storm, which trees are leaning more than 2° and need inspection before they fall on power lines?"
 
-**Before Wurzelwerk:** Reactive. Tree falls → emergency crews dispatched. Root intrusion into sewer pipes discovered when pipe bursts.
+**Before BeTree:** Reactive. Tree falls → emergency crews dispatched. Root intrusion into sewer pipes discovered when pipe bursts.
 
-**After Wurzelwerk:** Tilt sensors trigger inspection before failure. Moisture data near pipes predicts root growth direction.
+**After BeTree:** Tilt sensors trigger inspection before failure. Moisture data near pipes predicts root growth direction.
 
 ---
 
@@ -111,12 +111,3 @@ One sensor box costs ~€24 at scale (see `findings/power-budget.md` BOM). It pr
 
 The sensor pays for itself through departmental cost sharing before a single tree is saved.
 
----
-
-## The Pitch Statement
-
-> *"We didn't build a tree watering sensor. We built the first street-level data grid for Karlsruhe. The tree is the deployment vector. The data serves five departments. One sensor box, one installation, one API — five different answers to five different questions the city has never been able to ask."*
-
-### Example Street Closure Narrative (for pitch)
-
-> *"Kaiserstraße was closed to cars in 2025. The Verkehrsamt wants to know: did it work? Our sensor on the plane tree at Kaiserstraße 42 has counted 8,700 footsteps per day since closure — up from 3,200 before. The Umweltamt sees noise dropped from 72 dB to 58 dB. The Grünflächenamt sees the tree is healthier because less road salt reaches its roots. One sensor. Three departments. One answer: yes, it worked."*
