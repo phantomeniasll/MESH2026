@@ -5,14 +5,14 @@
 **Title on slide:** *"Cheap at every layer: hardware, connectivity, power, data, and coverage."*
 
 ## Bullet points on slide
-- **Hardware:** ~**€24 BOM** per node at volume. Standard, reusable off-the-shelf sensors.
-- **Install in 5 minutes.** Stake it next to the tree, register it in the app, and it joins the mesh and knows where it is. No grid hookup, no trenching, no specialist.
-- **Connectivity: ~€1 per node.** ESP-NOW mesh is free between nodes; only the central gateway nodes carry WiFi, amortised to roughly €1 per node across the cluster. No SIM, no LoRaWAN fee, no WiFi per tree.
-- **Power: €0 running cost.** Solar + LiPo, no grid, no battery swaps, no maintenance truck rolls.
-- **Tiny energy budget.** The node deep-sleeps and wakes ~every 15 min with the sensors power-gated off, drawing ~7 µA: on the order of **0.2 mAh/day (~60 mAh/year)** in the production design. A 5×5 cm solar cell is overkill, so it runs for years with no battery swap. *(The hackathon dev board draws more through its USB chip; the custom PCB hits these numbers.)*
-- **Data: free.** Open-Meteo / DWD weather costs nothing.
-- **Coverage: nearly free.** The hybrid model covers all **126k trees** from a few hundred sensors, so we don't pay for a sensor per tree.
-- **Rewards: existing city capacity**, not cash out the door (seed packets, museum entry, transit pass).
+- **~€24 BOM** per node at volume
+- **Install in 5 minutes:** stake, register, joins the mesh
+- **Connectivity ~€1 per node** (only gateways use WiFi)
+- **Self-powered:** solar + LiPo, no grid, no battery swaps
+- **Tiny energy budget:** deep-sleep ~7 µA, ~60 mAh/year
+- **Free weather data** (Open-Meteo / DWD)
+- **A few hundred sensors cover all 126k trees**
+- **Rewards are existing city capacity,** not cash
 
 ## What to say
 - "The cost isn't just a cheap sensor. Every single layer is cheap: the build, the radio, the power, the weather data, and the coverage."

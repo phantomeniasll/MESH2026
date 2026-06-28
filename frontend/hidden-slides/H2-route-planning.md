@@ -5,13 +5,13 @@
 **Title on slide:** *"A multi-truck route planner, on a live per-tree model of the city."*
 
 ## Bullet points on slide
-- **Multi-truck route planning.** The hybrid model ranks every tree by water stress; the planner splits the thirsty trees across multiple trucks into efficient routes, instead of fixed loops that miss the trees actually drying out.
-- **Risk triage.** Young, high-stress trees rise to the top of the list; healthy mature ones drop off it.
-- **Turn-by-turn for citizens.** The app routes a volunteer to the nearest tree they can actually help.
-- **A live per-tree, per-street model underneath.** Soil, microclimate, heat, and activity, ground-truthed by sensors. Not a generic weather grid.
-- **Proof that an intervention worked.** Before/after on real continuous data: did pedestrianising this street, or Tempo-30, actually cool it or cut the noise?
-- **Evidence the city can defend.** Numbers for the Klimaanpassungsgesetz report and for budget decisions, instead of "we think it helped."
-- **Closed loop:** plan, act, verify, re-plan.
+- **Multi-truck route planning,** ranked by water stress
+- **Risk triage:** young, high-stress trees first
+- **Turn-by-turn** for citizens to the nearest tree
+- **A live per-tree, per-street model** underneath
+- **Proof an intervention worked:** before/after on real data
+- **Evidence** for compliance and budget decisions
+- **Closed loop:** plan, act, verify
 
 ## What to say
 - "Instead of fixed routes that miss the trees actually drying out, the planner takes the ranked thirsty trees and splits them efficiently across your trucks."

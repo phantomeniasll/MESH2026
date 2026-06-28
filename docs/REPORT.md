@@ -2,10 +2,14 @@
 
 **Measure where the city is dying, pay people to fix it, prove it worked.**
 
-Team **be tree** · HackXplore 2026 · Karlsruhe
-Citizen app `betree.me` · API `api.betree.me`
+- **Project title:** BeTree
+- **Team name:** be tree
+- **Team members:** Julian Mörk, Tomo Clement, Victoria Einike
+- **Event:** HackXplore 2026, Karlsruhe
+- **Prototype:** [betree.me](https://betree.me) (citizen app) · [api.betree.me](https://api.betree.me) (API)
+- **Code:** [github.com/phantomeniasll/MESH2026](https://github.com/phantomeniasll/MESH2026)
 
----
+<div class="pagebreak"></div>
 
 ## 1. Executive summary
 

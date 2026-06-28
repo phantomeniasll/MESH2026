@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Render each hidden-slide H*.md into a styled landscape slide PDF.
+"""Render each hidden-slide H*.md into a clean slide PDF.
 
-Outputs one PDF per slide plus a combined deck in ./out/.
-Run with the backend venv:
+The slide shows ONLY the on-slide title + bullet points (no visual notes,
+speaker notes, or why-citizen/why-city sections). Outputs one PDF per slide
+plus a combined deck in ./out/. Run with the backend venv:
 
     backend/.venv/bin/python frontend/hidden-slides/build_slides_pdf.py
 """
 from __future__ import annotations
 
 import pathlib
+import re
 
 import markdown
 from weasyprint import HTML
@@ -22,42 +24,44 @@ SLIDES = sorted(p for p in HERE.glob("H*.md"))
 CSS = """
 @page {
   size: 13.333in 7.5in;            /* 16:9 slide */
-  margin: 11mm 14mm 10mm 14mm;
-  @bottom-left  { content: "BeTree · HackXplore 2026 · hidden slide"; font: 8pt 'Lato', sans-serif; color: #9aa39a; }
-  @bottom-right { content: counter(page); font: 8pt 'Lato', sans-serif; color: #9aa39a; }
+  margin: 22mm 24mm;
+  @bottom-right { content: counter(page); font: 9pt 'Lato', sans-serif; color: #9aa39a; }
 }
 * { box-sizing: border-box; }
-body { font-family: 'Lato', 'Helvetica Neue', sans-serif; font-size: 10pt; line-height: 1.3; color: #1d241c; }
-
-/* eyebrow / kicker (the "# Hidden Slide N — ..." heading) */
-h1 {
-  font-size: 10pt; font-weight: 700; letter-spacing: .8pt; text-transform: uppercase;
-  color: #2e7d32; margin: 0 0 3pt; border-bottom: 2px solid #2e7d32; padding-bottom: 4pt;
-}
-/* section labels: Bullet points / What to say / Why ... */
-h2 {
-  font-size: 9.5pt; color: #14431f; margin: 9pt 0 3pt; text-transform: uppercase;
-  letter-spacing: .5pt; border-left: 4px solid #2e7d32; padding-left: 7pt;
-}
-p { margin: 3pt 0; }
-/* the "**Title on slide:** *"..."*" line renders big and hero-like */
-p:nth-of-type(2) { font-size: 16pt; line-height: 1.15; color: #14431f; font-weight: 700; margin: 6pt 0 8pt; }
-p:nth-of-type(2) em { color: #14431f; font-style: normal; }
-strong { color: #14431f; }
-em { color: #4a574a; }
-ul { margin: 3pt 0; padding-left: 16pt; }
-li { margin: 1.5pt 0; }
-a { color: #2e7d32; text-decoration: none; }
+body { font-family: 'Lato', 'Helvetica Neue', sans-serif; color: #1d241c; }
 .slide { page-break-after: always; }
 .slide:last-child { page-break-after: auto; }
+.hero {
+  font-size: 27pt; line-height: 1.15; color: #14431f; font-weight: 800;
+  margin: 0 0 22pt; padding-bottom: 12pt; border-bottom: 3px solid #2e7d32;
+  letter-spacing: -.3pt;
+}
+ul { list-style: none; margin: 0; padding: 0; }
+li {
+  font-size: 16pt; line-height: 1.35; margin: 0 0 14pt; padding-left: 26pt; position: relative;
+}
+li::before {
+  content: ""; position: absolute; left: 0; top: 9pt;
+  width: 11pt; height: 11pt; background: #2e7d32; border-radius: 2pt;
+}
+strong { color: #14431f; font-weight: 800; }
+em { color: #4a574a; }
 """
 
 
-def md_to_html(path: pathlib.Path) -> str:
-    return markdown.markdown(
-        path.read_text(encoding="utf-8"),
-        extensions=["tables", "fenced_code", "sane_lists", "attr_list"],
-    )
+def parse(path: pathlib.Path) -> tuple[str, str]:
+    text = path.read_text(encoding="utf-8")
+    m = re.search(r"\*\*Title on slide:\*\*\s*(.+)", text)
+    title = m.group(1).strip() if m else path.stem
+    title = title.strip().lstrip("*").rstrip("*").strip().strip('"').strip("“”").strip()
+    bm = re.search(r"##\s*Bullet points on slide\s*\n(.*?)(?=\n##\s|\Z)", text, re.S)
+    bullets = bm.group(1).strip() if bm else ""
+    return title, bullets
+
+
+def slide_html(title: str, bullets_md: str) -> str:
+    bullets = markdown.markdown(bullets_md, extensions=["sane_lists"])
+    return f"<div class='slide'><div class='hero'>{title}</div>{bullets}</div>"
 
 
 def wrap(body: str) -> str:
@@ -67,15 +71,15 @@ def wrap(body: str) -> str:
     )
 
 
-# Per-slide PDFs
-for p in SLIDES:
-    html = wrap(f"<div class='slide'>{md_to_html(p)}</div>")
+parsed = [parse(p) for p in SLIDES]
+
+for p, (title, bullets) in zip(SLIDES, parsed):
+    html = wrap(slide_html(title, bullets))
     out = OUT / f"{p.stem}.pdf"
     HTML(string=html, base_url=str(HERE)).write_pdf(str(out))
     print(f"Wrote {out.relative_to(HERE)}  ({out.stat().st_size // 1024} KB)")
 
-# Combined deck
-combined = "".join(f"<div class='slide'>{md_to_html(p)}</div>" for p in SLIDES)
 deck = OUT / "betree-hidden-slides.pdf"
+combined = "".join(slide_html(t, b) for t, b in parsed)
 HTML(string=wrap(combined), base_url=str(HERE)).write_pdf(str(deck))
 print(f"Wrote {deck.relative_to(HERE)}  ({deck.stat().st_size // 1024} KB)")

@@ -50,6 +50,7 @@ strong { color: #14431f; }
 em { color: #4a574a; }
 
 hr { border: none; border-top: 1px solid #d8e2d6; margin: 14pt 0; }
+.pagebreak { break-after: page; }
 
 table {
   border-collapse: collapse; width: 100%; margin: 8pt 0; font-size: 9.2pt;
