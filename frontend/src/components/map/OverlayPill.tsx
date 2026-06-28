@@ -7,7 +7,7 @@ interface Props {
 }
 
 const options: { value: Overlay; label: string }[] = [
-  { value: "none", label: "Keine" },
+  { value: "none", label: "None" },
   { value: "moisture", label: "Moisture" },
   { value: "heat", label: "Heat" },
 ];

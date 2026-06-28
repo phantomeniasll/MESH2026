@@ -2,7 +2,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Flower2, Landmark, Train, CalendarCheck, Leaf, Car, Music, Star, Gift } from "lucide-react";
+import { Flower2, Landmark, Train, CalendarCheck, Leaf, Car, Music, Star, Gift, Waves } from "lucide-react";
 import type { Reward } from "@/lib/mock/rewards";
 import { useBetreeStore } from "@/store/useBetreeStore";
 import { getDict } from "@/lib/i18n";
@@ -19,6 +19,7 @@ const ICONS: Record<string, React.ComponentType<LucideProps>> = {
   Music,
   Star,
   Gift,
+  Waves,
 };
 
 interface Props {

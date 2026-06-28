@@ -29,6 +29,8 @@ interface BetreeState {
   setMapTreesFC: (fc: TreeFC) => void;
   scanPhase: ScanPhase;
   scanTreeId: string | null;
+  scanMode: "sim" | "live";
+  setScanMode: (mode: "sim" | "live") => void;
   rejectionReason: string | null;
   selectedTreeId: string | null;
   activeTab: ActiveTab;
@@ -50,6 +52,7 @@ interface BetreeState {
   setScanTreeId: (id: string) => void;
   setRejectionReason: (reason: string | null) => void;
   confirmWatering: (treeId: string) => Promise<WateringResult | null>;
+  resetWatered: (treeId: string) => void;
   rejectWatering: (reason: string) => void;
   redeemReward: (cost: number) => boolean;
   setSelectedTree: (id: string | null) => void;
@@ -71,6 +74,8 @@ export const useBetreeStore = create<BetreeState>((set, get) => ({
   setMapTreesFC: (fc) => set({ mapTreesFC: fc }),
   scanPhase: "idle",
   scanTreeId: null,
+  scanMode: "sim",
+  setScanMode: (mode) => set({ scanMode: mode }),
   rejectionReason: null,
   selectedTreeId: null,
   activeTab: "map",
@@ -110,8 +115,8 @@ export const useBetreeStore = create<BetreeState>((set, get) => ({
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   openScanFor: (treeId) =>
-    set({ scanPhase: "picking-method", scanTreeId: treeId, rejectionReason: null }),
-  closeScan: () => set({ scanPhase: "idle", scanTreeId: null, rejectionReason: null }),
+    set({ scanPhase: "picking-method", scanTreeId: treeId, scanMode: "sim", rejectionReason: null }),
+  closeScan: () => set({ scanPhase: "idle", scanTreeId: null, scanMode: "sim", rejectionReason: null }),
   setScanPhase: (phase) => set({ scanPhase: phase }),
   setScanTreeId: (id) => set({ scanTreeId: id }),
   setRejectionReason: (reason) => set({ rejectionReason: reason }),
@@ -144,6 +149,14 @@ export const useBetreeStore = create<BetreeState>((set, get) => ({
       return null;
     }
   },
+
+  // Demo helper: un-mark a tree as watered so it's testable again.
+  resetWatered: (treeId) =>
+    set((s) => {
+      const next = new Set(s.wateredTreeIds);
+      next.delete(treeId);
+      return { wateredTreeIds: next };
+    }),
 
   rejectWatering: (reason) =>
     set({ scanPhase: "rejected", rejectionReason: reason }),

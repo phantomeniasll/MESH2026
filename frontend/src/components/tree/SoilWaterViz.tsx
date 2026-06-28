@@ -17,8 +17,12 @@ export function SoilWaterViz({ moisture, isWatered, litersPerDay }: Props) {
   const currentLiters = Math.round((pct / GOAL_PCT) * litersPerDay);
   const goalReached = pct >= GOAL_PCT;
 
-  const waterTopY = H - (pct / 100) * H;
-  const goalY = H - (GOAL_PCT / 100) * H;
+  // Non-linear fill so low-but-nonzero moisture still shows a readable water
+  // body (a thin linear sliver was unreadable). Applied to the goal line too so
+  // the surface and the goal stay visually consistent.
+  const disp = (p: number) => Math.pow(Math.max(0, Math.min(100, p)) / 100, 0.6);
+  const waterTopY = H - disp(pct) * H;
+  const goalY = H - disp(GOAL_PCT) * H;
 
   // Soil layer boundaries (from top)
   const L1 = 24;   // humus → topsoil
@@ -105,15 +109,17 @@ export function SoilWaterViz({ moisture, isWatered, litersPerDay }: Props) {
           </text>
 
           {/* Current liters in water body, or "0 L" at bottom when dry */}
-          {pct > 7 ? (
+          {pct > 4 ? (
             <text
               x={W / 2}
               y={Math.min(waterTopY + 17, H - 5)}
               textAnchor="middle"
               fontSize={13}
               fontWeight="800"
-              fill={goalReached ? GOAL_CLR : "#0ea5e9"}
-              style={{ fontFamily: "system-ui, sans-serif" }}
+              fill="#ffffff"
+              stroke="rgba(8,47,73,0.65)"
+              strokeWidth={0.8}
+              style={{ fontFamily: "system-ui, sans-serif", paintOrder: "stroke" }}
             >
               {goalReached ? `✓ ${currentLiters} L` : `${currentLiters} L`}
             </text>

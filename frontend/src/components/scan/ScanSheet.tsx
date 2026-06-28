@@ -15,6 +15,8 @@ export function ScanSheet() {
   const {
     scanPhase,
     scanTreeId,
+    scanMode,
+    setScanMode,
     rejectionReason,
     closeScan,
     setScanPhase,
@@ -52,7 +54,15 @@ export function ScanSheet() {
     toast.error(reason);
   };
 
+  // Right button: verify against the REAL sensor on KA-00001.
+  const handleLiveDemo = () => {
+    setScanMode("live");
+    setScanTreeId("KA-00001");
+    setScanPhase("verifying");
+  };
+
   const handleDemoMode = () => {
+    setScanMode("sim");
     if (mapTreesFC) {
       const thirsty = mapTreesFC.features.find(
         (f) => f.properties.status === "thirsty"
@@ -80,7 +90,7 @@ export function ScanSheet() {
 
   return (
     <Drawer open={open} onOpenChange={(v) => !v && closeScan()}>
-      <DrawerContent className="flex flex-col min-h-[40dvh]">
+      <DrawerContent className="flex flex-col min-h-[40dvh] data-[vaul-drawer-direction=bottom]:bottom-[calc(3.5rem+env(safe-area-inset-bottom))] data-[vaul-drawer-direction=bottom]:rounded-b-xl">
         <DrawerHeader className="flex items-center justify-between border-b border-border pb-3">
           <DrawerTitle className="font-heading">
             {scanPhase === "verifying"
@@ -111,9 +121,10 @@ export function ScanSheet() {
             </div>
           )}
 
-          {scanPhase === "verifying" && scanTreeId && (
+          {(scanPhase === "verifying" || scanPhase === "verified") && scanTreeId && (
             <VerifyView
               treeId={scanTreeId}
+              live={scanMode === "live" || scanTreeId === "KA-00001"}
               onVerified={handleVerified}
               onRejected={handleRejected}
             />
@@ -148,13 +159,25 @@ export function ScanSheet() {
                       {t.tapNfc}
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    className="w-full text-muted-foreground"
-                    onClick={handleDemoMode}
-                  >
-                    {t.demoMode}
-                  </Button>
+                  {/* Demo: left = simulated watering, right = real KA-00001 sensor */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      className="w-full text-xs h-auto py-2 leading-tight"
+                      onClick={handleDemoMode}
+                    >
+                      Demo watering
+                      <span className="block text-[10px] text-muted-foreground">simulated</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full text-xs h-auto py-2 leading-tight border-primary/40"
+                      onClick={handleLiveDemo}
+                    >
+                      Live sensor
+                      <span className="block text-[10px] text-muted-foreground">Tree KA-00001</span>
+                    </Button>
+                  </div>
                 </div>
               )}
 

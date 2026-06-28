@@ -18,7 +18,7 @@ class Reading(Base):
     temperature: Mapped[float | None] = mapped_column(Float)        # Celsius
     humidity: Mapped[float | None] = mapped_column(Float)           # %RH
     battery_voltage: Mapped[float | None] = mapped_column(Float)    # V
-    footfall_count: Mapped[int | None] = mapped_column(Integer)     # since last reading
+    footfall_count: Mapped[int | None] = mapped_column(Integer)     # since last reading (presented as "activity level" in city dashboard)
     tilt_angle: Mapped[float | None] = mapped_column(Float)         # degrees
     rssi: Mapped[int | None] = mapped_column(Integer)               # WiFi / LoRa signal
     snr: Mapped[float | None] = mapped_column(Float)                # LoRa SNR

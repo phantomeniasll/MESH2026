@@ -10,6 +10,14 @@ from ..database import get_db
 from ..models.reading import Reading
 from ..models.tree import Tree
 from ..schemas.tree import TreeCreate, TreeResponse, TreeSummary, TreeUpdate
+from ..services.water_balance import (
+    MOISTURE_THRESHOLD,
+    daily_water_need,
+    find_now_index,
+    forecast_curve,
+    now_cast,
+)
+from ..services.weather import get_weather
 
 router = APIRouter(prefix="/api/trees", tags=["trees"])
 
@@ -136,6 +144,84 @@ async def get_tree(tree_id: str, db: AsyncSession = Depends(get_db)):
     if not tree:
         raise HTTPException(status_code=404, detail="Tree not found")
     return TreeResponse.model_validate(tree)
+
+
+@router.get("/{tree_id}/forecast")
+async def tree_forecast(
+    tree_id: str,
+    lat: float | None = Query(None, ge=-90, le=90),
+    lng: float | None = Query(None, ge=-180, le=180),
+    age: int | None = Query(None, ge=0),
+    species: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Hybrid soil-water forecast for a tree.
+
+    Anchors on the latest sensor moisture if available (``source="sensor"``),
+    otherwise seeds from Open-Meteo's modelled soil moisture (``source="modeled"``),
+    then integrates an ET0/precip water balance forward ~7 days. Degrades to
+    ``source="unavailable"`` (200, empty curve) if weather can't be fetched, so
+    the UI never breaks.
+
+    Most map trees aren't in the DB (only sensored/seeded ones are). For those,
+    pass ``lat``/``lng`` (and optionally ``age``) and we return a modelled
+    forecast from the coordinates — so the forecast covers *every* tree.
+    """
+    result = await db.execute(select(Tree).where(Tree.id == tree_id))
+    tree = result.scalar_one_or_none()
+
+    # Resolve coordinates, age and sensor anchor — from the DB tree if it exists,
+    # otherwise from the query params the map sends for unsensored trees.
+    if tree is not None:
+        t_lat, t_lng = tree.latitude, tree.longitude
+        age_years = (2026 - tree.planting_year) if tree.planting_year else age
+        latest = await db.execute(
+            select(Reading.moisture)
+            .where(Reading.tree_id == tree_id)
+            .order_by(Reading.recorded_at.desc())
+            .limit(1)
+        )
+        latest_moisture = latest.scalar_one_or_none()
+    elif lat is not None and lng is not None:
+        t_lat, t_lng = lat, lng
+        age_years = age
+        latest_moisture = None
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail="Tree not found — pass lat/lng for a modelled forecast.",
+        )
+
+    tree_species = tree.species if tree is not None else species
+
+    weather = await get_weather(t_lat, t_lng)
+    if weather is None:
+        return {
+            "tree_id": tree_id,
+            "source": "unavailable",
+            "now_moisture": latest_moisture,
+            "curve": [],
+            "dry_in_hours": None,
+            "dry_by": None,
+            "next_rain_at": None,
+            "will_refill": False,
+            "threshold": MOISTURE_THRESHOLD,
+            "liters_per_day": None,
+        }
+
+    now_idx = find_now_index(weather["time"])
+    start, source = now_cast(latest_moisture, weather, now_idx)
+    fc = forecast_curve(start, weather, now_idx, age_years)
+    liters_per_day = daily_water_need(weather, now_idx, age_years, tree_species)
+
+    return {
+        "tree_id": tree_id,
+        "source": source,
+        "now_moisture": round(start, 1),
+        "threshold": MOISTURE_THRESHOLD,
+        "liters_per_day": liters_per_day,
+        **fc,
+    }
 
 
 @router.post("", response_model=TreeResponse, status_code=201)

@@ -16,7 +16,7 @@ export const REWARDS: Reward[] = [
     titleDe: "Wildblumen-Saatgut",
     description: "A mix of native wildflower seeds for your balcony or garden.",
     descriptionDe: "Heimische Wildblumensamen für Balkon oder Garten.",
-    cost: 5,
+    cost: 50,
     icon: "Flower2",
     category: "nature",
   },

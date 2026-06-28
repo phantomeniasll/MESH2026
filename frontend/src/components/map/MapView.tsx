@@ -15,7 +15,9 @@ import { LocateButton } from "./LocateButton";
 import { TreeSheet } from "@/components/tree/TreeSheet";
 import type { Overlay } from "@/store/useBetreeStore";
 import type { GeoJSONSource } from "maplibre-gl";
-import { Siren, X, Navigation2, AlertTriangle } from "lucide-react";
+import { Siren, X, Navigation2, AlertTriangle, Building2 } from "lucide-react";
+import { buildIdwRaster, colorFnFor, type HeatPoint } from "@/lib/heatmap";
+import { DEMO_TREE_ID, demoDisplayMoisture } from "@/lib/constants";
 
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
 const MAP_STYLE = MAPTILER_KEY
@@ -27,62 +29,6 @@ const FOREST = "#1B5732";
 // Karlsruhe center fallback when no user location
 const KA_LAT = 49.0069;
 const KA_LNG = 8.4037;
-
-function lerpColor(
-  a: [number, number, number],
-  b: [number, number, number],
-  t: number
-): [number, number, number] {
-  return [
-    Math.round(a[0] + (b[0] - a[0]) * t),
-    Math.round(a[1] + (b[1] - a[1]) * t),
-    Math.round(a[2] + (b[2] - a[2]) * t),
-  ];
-}
-
-function heatRgb(t: number): [number, number, number] {
-  const green: [number, number, number] = [34, 197, 94];
-  const orange: [number, number, number] = [249, 115, 22];
-  const red: [number, number, number] = [220, 38, 38];
-  return t < 0.5 ? lerpColor(green, orange, t * 2) : lerpColor(orange, red, (t - 0.5) * 2);
-}
-
-function moistureRgb(t: number): [number, number, number] {
-  const tan: [number, number, number]  = [200, 180, 140];
-  const mid: [number, number, number]  = [125, 175, 220];
-  const blue: [number, number, number] = [29,  78,  216];
-  return t < 0.5 ? lerpColor(tan, mid, t * 2) : lerpColor(mid, blue, (t - 0.5) * 2);
-}
-
-function binTreesToCentroids(
-  features: TreeFC["features"],
-  fieldFn: (f: TreeFeature) => number
-): { lng: number; lat: number; value: number }[] {
-  const cells = new Map<
-    string,
-    { sumLng: number; sumLat: number; sumVal: number; count: number }
-  >();
-  for (const f of features) {
-    const lng = f.geometry.coordinates[0] as number;
-    const lat = f.geometry.coordinates[1] as number;
-    const val = fieldFn(f);
-    const cellKey = `${Math.round(lat / 0.00135)},${Math.round(lng / 0.00135)}`;
-    const cell = cells.get(cellKey);
-    if (cell) {
-      cell.sumLng += lng;
-      cell.sumLat += lat;
-      cell.sumVal += val;
-      cell.count++;
-    } else {
-      cells.set(cellKey, { sumLng: lng, sumLat: lat, sumVal: val, count: 1 });
-    }
-  }
-  return Array.from(cells.values()).map(({ sumLng, sumLat, sumVal, count }) => ({
-    lng: sumLng / count,
-    lat: sumLat / count,
-    value: sumVal / count,
-  }));
-}
 
 async function fetchOsrmRoute(
   fromLat: number, fromLng: number,
@@ -252,6 +198,18 @@ export default function MapView() {
         } catch {
           // live overrides non-critical
         }
+        // Demo tree: cap only its displayed water level so it registers thirsty
+        // (consistent map + detail); its real liters/day need is left untouched.
+        for (const feature of fc.features) {
+          if (feature.properties.id === DEMO_TREE_ID) {
+            feature.properties.moisture = demoDisplayMoisture(
+              feature.properties.id,
+              feature.properties.moisture,
+            );
+            feature.properties.status = "thirsty";
+            feature.properties.needsWater = true;
+          }
+        }
         if (!cancelled) {
           setTreesFC(fc);
           setMapTreesFC(fc);
@@ -273,85 +231,14 @@ export default function MapView() {
   }, [wateredTreeIds, appReady, treesFC]);
 
   const overlayImage = useMemo(() => {
-    if (overlay === "none" || !treesFC || typeof document === "undefined") return null;
-
-    const SIZE = 180;
-    const pts = binTreesToCentroids(
-      treesFC.features,
-      (f) => overlay === "heat" ? f.properties.heat : f.properties.moisture
-    );
-
-    const lngs = pts.map((p) => p.lng);
-    const lats = pts.map((p) => p.lat);
-    const pad = 0.014;
-    const minLng = Math.min(...lngs) - pad;
-    const maxLng = Math.max(...lngs) + pad;
-    const minLat = Math.min(...lats) - pad;
-    const maxLat = Math.max(...lats) + pad;
-
-    const vals = new Float32Array(SIZE * SIZE);
-    let minV = Infinity, maxV = -Infinity;
-    for (let py = 0; py < SIZE; py++) {
-      for (let px = 0; px < SIZE; px++) {
-        const lng = minLng + (px / SIZE) * (maxLng - minLng);
-        const lat = maxLat - (py / SIZE) * (maxLat - minLat);
-        let sumW = 0, acc = 0;
-        for (const pt of pts) {
-          const dx = lng - pt.lng, dy = lat - pt.lat;
-          const d2 = dx * dx + dy * dy;
-          if (d2 < 1e-14) { acc = pt.value; sumW = 1; break; }
-          const w = 1 / (d2 * d2 * d2);
-          sumW += w;
-          acc += w * pt.value;
-        }
-        const v = acc / sumW;
-        vals[py * SIZE + px] = v;
-        if (v < minV) minV = v;
-        if (v > maxV) maxV = v;
-      }
-    }
-
-    const raw = document.createElement("canvas");
-    raw.width = SIZE;
-    raw.height = SIZE;
-    const ctx = raw.getContext("2d")!;
-    const img = ctx.createImageData(SIZE, SIZE);
-    const range = maxV - minV || 1;
-    for (let i = 0; i < SIZE * SIZE; i++) {
-      const t = (vals[i] - minV) / range;
-      const [r, g, b] = overlay === "heat" ? heatRgb(t) : moistureRgb(t);
-      img.data[i * 4]     = r;
-      img.data[i * 4 + 1] = g;
-      img.data[i * 4 + 2] = b;
-      img.data[i * 4 + 3] = 210;
-    }
-    ctx.putImageData(img, 0, 0);
-
-    const blurred = document.createElement("canvas");
-    blurred.width = SIZE;
-    blurred.height = SIZE;
-    const bctx = blurred.getContext("2d")!;
-    bctx.filter = "blur(6px)";
-    bctx.drawImage(raw, 0, 0);
-    bctx.filter = "none";
-
-    const cx = SIZE / 2, cy = SIZE / 2;
-    const grad = bctx.createRadialGradient(cx, cy, SIZE * 0.28, cx, cy, SIZE * 0.56);
-    grad.addColorStop(0, "rgba(0,0,0,1)");
-    grad.addColorStop(1, "rgba(0,0,0,0)");
-    bctx.globalCompositeOperation = "destination-in";
-    bctx.fillStyle = grad;
-    bctx.fillRect(0, 0, SIZE, SIZE);
-
-    return {
-      url: blurred.toDataURL(),
-      coords: [
-        [minLng, maxLat],
-        [maxLng, maxLat],
-        [maxLng, minLat],
-        [minLng, minLat],
-      ] as [[number, number], [number, number], [number, number], [number, number]],
-    };
+    if (overlay === "none" || !treesFC) return null;
+    const metric = overlay === "heat" ? "heat" : "moisture";
+    const points: HeatPoint[] = treesFC.features.map((f) => ({
+      lng: f.geometry.coordinates[0] as number,
+      lat: f.geometry.coordinates[1] as number,
+      value: metric === "heat" ? f.properties.heat : f.properties.moisture,
+    }));
+    return buildIdwRaster(points, colorFnFor(metric));
   }, [overlay, treesFC]);
 
   const handleMapClick = useCallback(
@@ -359,13 +246,31 @@ export default function MapView() {
       const map = mapRef.current?.getMap();
       if (!map) return;
 
-      const features = map.queryRenderedFeatures(e.point, {
+      // Query a small box around the tap, not just the exact pixel, so the
+      // small markers are far easier to hit.
+      const TOL = 12;
+      const bbox: [[number, number], [number, number]] = [
+        [e.point.x - TOL, e.point.y - TOL],
+        [e.point.x + TOL, e.point.y + TOL],
+      ];
+
+      const features = map.queryRenderedFeatures(bbox, {
         layers: ["unclustered-trees"],
       });
 
       if (features.length > 0) {
-        const props = features[0].properties as TreeFeature["properties"];
-        const geom = features[0].geometry as GeoJSON.Point;
+        // Pick the marker nearest the tap point.
+        const nearest = features.reduce(
+          (best, f) => {
+            const c = (f.geometry as GeoJSON.Point).coordinates as [number, number];
+            const p = map.project(c);
+            const d = (p.x - e.point.x) ** 2 + (p.y - e.point.y) ** 2;
+            return d < best.d ? { f, d } : best;
+          },
+          { f: features[0], d: Infinity },
+        ).f;
+        const props = nearest.properties as TreeFeature["properties"];
+        const geom = nearest.geometry as GeoJSON.Point;
         const syntheticTree: TreeFeature = {
           type: "Feature",
           geometry: geom,
@@ -376,7 +281,7 @@ export default function MapView() {
         return;
       }
 
-      const clusterFeatures = map.queryRenderedFeatures(e.point, {
+      const clusterFeatures = map.queryRenderedFeatures(bbox, {
         layers: ["clusters"],
       });
       if (clusterFeatures.length > 0) {
@@ -473,7 +378,7 @@ export default function MapView() {
                 ["interpolate", ["linear"], ["get", "moisture"],
                   0, "#DC2626", 20, "#EA580C", 40, "#CA8A04", 60, "#65A30D", 100, "#16A34A"],
               ],
-              "circle-radius": 7,
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 7, 15, 9, 18, 11],
               "circle-stroke-width": 1.5,
               "circle-stroke-color": "#FEF9E0",
             }} />
@@ -496,6 +401,15 @@ export default function MapView() {
       <div className="absolute top-4 left-4 z-10">
         <OverlayPill value={overlay} onChange={setOverlay} />
       </div>
+
+      {/* Jump to the city operations dashboard */}
+      <a
+        href="/city"
+        className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-background/90 backdrop-blur border border-border rounded-full px-3 py-1.5 text-xs font-medium shadow-sm text-foreground hover:text-primary transition-colors"
+      >
+        <Building2 size={14} />
+        City
+      </a>
 
       {/* FAB column — bottom-right, locate on top, rescue below */}
       <div className="absolute bottom-10 right-4 z-10 flex flex-col items-end gap-2">

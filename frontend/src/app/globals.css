@@ -100,3 +100,39 @@ html, body { height: 100dvh; overflow: hidden; }
 @media (display-mode: standalone) {
   html, body { height: 100lvh; }
 }
+
+/* ── City Intelligence Platform — Stadtleitstelle palette ─────────────────────
+   Applied via .city-console wrapper in /city layout; does NOT affect citizen app.
+   Light, professional municipal-console palette. */
+.city-console {
+  /* Light theme — crisp white cards on a cool paper-gray ground, hairline borders */
+  --cc-bg:       #f3f5f8;
+  --cc-surface:  #ffffff;
+  --cc-surface2: #eef1f5;
+  --cc-border:   #e3e8ef;
+  --cc-border2:  #cdd5e0;
+  --cc-text:     #1e293b;
+  --cc-muted:    #586575;
+  --cc-muted2:   #94a3b3;
+  --cc-brand:    #15803d;
+  --cc-accent:   #2563eb;
+  --cc-mono:     'JetBrains Mono', 'Courier New', ui-monospace, monospace;
+
+  --metric-noise:    #b45309;
+  --metric-activity: #0369a1;
+  --metric-heat:     #c2410c;
+  --metric-moisture: #2563eb;
+
+  /* shadcn token overrides */
+  --background:       #f3f5f8;
+  --foreground:       #1e293b;
+  --card:             #ffffff;
+  --card-foreground:  #1e293b;
+  --border:           #e3e8ef;
+  --muted:            #eef1f5;
+  --muted-foreground: #586575;
+
+  background-color: var(--cc-bg);
+  color: var(--cc-text);
+  min-height: 100dvh;
+}

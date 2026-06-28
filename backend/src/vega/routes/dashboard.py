@@ -65,15 +65,15 @@ async def tree_map(db: AsyncSession = Depends(get_db)):
     return {"features": features, "count": len(features)}
 
 
-@router.get("/footfall")
-async def footfall_heatmap(db: AsyncSession = Depends(get_db)):
-    """Footfall data aggregated per tree for heat map."""
+@router.get("/activity")
+async def activity_heatmap(db: AsyncSession = Depends(get_db)):
+    """Activity (pedestrian footfall) data aggregated per tree for heat map."""
     result = await db.execute(select(Tree))
     trees = result.scalars().all()
 
     data = []
     for tree in trees:
-        total_footfall = await db.execute(
+        total_activity = await db.execute(
             select(func.coalesce(func.sum(Reading.footfall_count), 0))
             .where(Reading.tree_id == tree.id)
         )
@@ -82,7 +82,7 @@ async def footfall_heatmap(db: AsyncSession = Depends(get_db)):
             "tree_name": tree.name,
             "lat": tree.latitude,
             "lng": tree.longitude,
-            "total_footfall": total_footfall.scalar(),
+            "total_activity": total_activity.scalar(),
         })
 
     return {"points": data}

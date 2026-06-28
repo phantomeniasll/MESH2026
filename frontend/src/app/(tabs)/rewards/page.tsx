@@ -14,8 +14,12 @@ function toViewReward(dto: RewardDTO): Reward {
   const iconMap: Record<string, string> = {
     food: "Leaf",
     transport: "Car",
-    culture: "Music",
+    culture: "Landmark",
+    leisure: "Waves",
     civic: "Star",
+    priority: "CalendarCheck",
+    ceremony: "Star",
+    merch: "Gift",
   };
   return {
     id: dto.id,

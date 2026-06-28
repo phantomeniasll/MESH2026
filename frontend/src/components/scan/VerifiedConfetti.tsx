@@ -10,7 +10,7 @@ export function VerifiedConfetti({ show }: { show: boolean }) {
     <AnimatePresence>
       {show && (
         <motion.div
-          className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 z-20"
+          className="absolute inset-0 flex flex-col items-center justify-center bg-background/70 backdrop-blur-[1px] z-20"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

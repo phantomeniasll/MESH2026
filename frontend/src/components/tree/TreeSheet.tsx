@@ -1,12 +1,15 @@
 "use client";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { X, Heart, Navigation2 } from "lucide-react";
+import { X, Heart, Navigation2, Droplets } from "lucide-react";
+import { isDroughtProneSpecies, demoDisplayMoisture } from "@/lib/constants";
 import { useBetreeStore } from "@/store/useBetreeStore";
 import { formatRelativeTime } from "@/lib/format";
 import { getDict } from "@/lib/i18n";
 import { TreeRingViz } from "./TreeRingViz";
 import { SoilWaterViz } from "./SoilWaterViz";
+import { ForecastStrip } from "./ForecastStrip";
+import { useTreeForecast } from "@/lib/useTreeForecast";
 import type { TreeFeature } from "@/lib/types";
 
 interface Props {
@@ -19,6 +22,7 @@ export function TreeSheet({ tree, open, onClose }: Props) {
   const openScanFor = useBetreeStore((s) => s.openScanFor);
   const lang = useBetreeStore((s) => s.lang);
   const wateredTreeIds = useBetreeStore((s) => s.wateredTreeIds);
+  const resetWatered = useBetreeStore((s) => s.resetWatered);
   const favorites = useBetreeStore((s) => s.favorites);
   const toggleFavorite = useBetreeStore((s) => s.toggleFavorite);
   const userLat = useBetreeStore((s) => s.userLat);
@@ -27,14 +31,25 @@ export function TreeSheet({ tree, open, onClose }: Props) {
   const userId = useBetreeStore((s) => s.userId);
   const t = getDict(lang);
   const p = tree?.properties;
+  const treeLat = tree?.geometry?.coordinates[1] as number | undefined;
+  const treeLng = tree?.geometry?.coordinates[0] as number | undefined;
+  const { forecast, loading: forecastLoading } = useTreeForecast(
+    p?.id ?? "",
+    treeLat,
+    treeLng,
+    p?.ageYears,
+    p?.species,
+  );
 
   if (!p) return null;
 
   const isWatered = wateredTreeIds.has(p.id);
   const isFav = favorites.has(p.id);
   const canNavigate = userLat !== null && userLng !== null;
-  const treeLat = tree?.geometry?.coordinates[1] as number | undefined;
-  const treeLng = tree?.geometry?.coordinates[0] as number | undefined;
+  // Real need (forecast/snapshot); only the demo tree's displayed water level is
+  // capped low enough to register thirsty (consistent with the map).
+  const litersPerDay = forecast?.liters_per_day ?? p.litersPerDay;
+  const moisture = demoDisplayMoisture(p.id, forecast?.now_moisture ?? p.moisture);
 
   function handleNavigate() {
     if (!canNavigate || treeLat == null || treeLng == null) return;
@@ -44,7 +59,7 @@ export function TreeSheet({ tree, open, onClose }: Props) {
 
   return (
     <Drawer open={open} onOpenChange={(v) => !v && onClose()}>
-      <DrawerContent className="flex flex-col max-h-[90dvh]">
+      <DrawerContent className="flex flex-col max-h-[90dvh] data-[vaul-drawer-direction=bottom]:bottom-[calc(3.5rem+env(safe-area-inset-bottom))] data-[vaul-drawer-direction=bottom]:rounded-b-xl">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -60,6 +75,12 @@ export function TreeSheet({ tree, open, onClose }: Props) {
             <div className="min-w-0">
               <h2 className="font-heading text-xl leading-tight">{p.species}</h2>
               <p className="text-xs text-muted-foreground mt-0.5">{p.neighborhood} · {p.id}</p>
+              {isDroughtProneSpecies(p.species) && (
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-orange-100 dark:bg-orange-950/40 px-2 py-0.5 text-[10px] font-medium text-orange-700 dark:text-orange-400">
+                  <Droplets size={11} />
+                  Drought-sensitive species
+                </span>
+              )}
             </div>
             {/* Favorite toggle */}
             {userId && (
@@ -81,10 +102,13 @@ export function TreeSheet({ tree, open, onClose }: Props) {
           <div className="grid grid-cols-[5fr_7fr] gap-2">
             <div className="flex flex-col gap-1.5">
               <div className="bg-muted rounded-xl overflow-hidden h-52">
-                <SoilWaterViz moisture={p.moisture} isWatered={isWatered} litersPerDay={p.litersPerDay} />
+                <SoilWaterViz moisture={moisture} isWatered={isWatered} litersPerDay={litersPerDay} />
               </div>
               <p className="text-xs text-muted-foreground text-center">
-                {p.litersPerDay} L / day
+                {Math.round(litersPerDay)} L / day
+                {forecast?.liters_per_day != null && (
+                  <span className="block text-[10px] opacity-70">weather-based need</span>
+                )}
               </p>
             </div>
             <div className="flex flex-col gap-1.5">
@@ -96,6 +120,9 @@ export function TreeSheet({ tree, open, onClose }: Props) {
               </p>
             </div>
           </div>
+
+          {/* Hybrid water-balance forecast */}
+          {open && <ForecastStrip forecast={forecast} loading={forecastLoading} />}
 
           {/* CO₂ and cooling */}
           <div className="grid grid-cols-2 gap-2">
@@ -136,6 +163,16 @@ export function TreeSheet({ tree, open, onClose }: Props) {
               </Button>
             )}
           </div>
+
+          {/* Demo-only: un-water so the tree is testable again */}
+          {isWatered && (
+            <button
+              onClick={() => resetWatered(p.id)}
+              className="mx-auto text-[10px] text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+            >
+              reset (demo)
+            </button>
+          )}
         </div>
       </DrawerContent>
     </Drawer>
