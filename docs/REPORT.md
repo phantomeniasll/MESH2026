@@ -3,7 +3,7 @@
 **Measure where the city is dying, pay people to fix it, prove it worked.**
 
 Team **be tree** · HackXplore 2026 · Karlsruhe
-Citizen app `beta.betree.me` · API `api.betree.me`
+Citizen app `betree.me` · API `api.betree.me`
 
 ---
 
@@ -22,7 +22,7 @@ water get it, trees that do die. A young tree that dies costs **€5,000–15,00
    *sensor confirms a real moisture rise* (rain cross-checked). No honor system. Verified care
    earns credits redeemable for real city perks.
 
-The economics are decisive: **one saved tree pays for a full season of citizen rewards ~100× over**,
+The economics are decisive: **one saved tree pays for a full season of citizen rewards roughly 10–30× over**,
 and the same sensor answers questions for **five city departments** from one install. The city buys
 the climate-compliance data it's legally mandated to produce anyway — and citizen labour does the saves.
 
@@ -32,7 +32,7 @@ the climate-compliance data it's legally mandated to produce anyway — and citi
 |-------|-------------------|
 | **Hardware mesh** | ESP32 dual-node **ESP-NOW mesh** firmware (PlatformIO), low-power sensor node + WiFi gateway |
 | **Self-built prototype** | We 3D-designed & printed the **"Sprig"** enclosure and built it with sensors bought **Saturday morning in a Karlsruhe shop** — it's live in a tree |
-| **Live data** | **60,000+** real sensor readings; the app's watering verification polls a real device (KA-00001) |
+| **Live data** | **60,000+** real readings from **two live nodes** — one standalone, one mesh (KA-00001 / KA-00002) |
 | **Real city** | **126,434** actual Karlsruhe trees (open cadastre) on the live map |
 | **Real model** | FAO-56 soil-water balance + Open-Meteo/DWD weather, reading **root-zone depth** |
 | **Shipped** | Deployed PWA + FastAPI, green CI (ruff · mypy · pytest, Python 3.11–3.13) |
@@ -163,13 +163,13 @@ before a single tree is saved.
 | Connectivity (ESP-NOW mesh) | **€0 per node** (shared gateway) |
 | Power (solar + LiPo) | self-powered, no grid, ~zero maintenance |
 
-### 7.2 The 100× argument
+### 7.2 The order-of-magnitude argument
 
 | | Cost |
 |---|---|
 | Replacing **one** dead young tree (removal + replant + 3–5 yr establishment watering) | **€5,000–15,000** |
-| A **full summer** of citizen watering rewards (redeemable perks) | **< €50** |
-| **Return on a single saved tree** | **~100×** |
+| A **full summer** of citizen watering rewards to keep a tree alive (redeemable perks) | **up to ~€500** |
+| **Return on a single saved tree** | **~10–30×** |
 
 Reward catalogue (low marginal cost to the city): seed packets · museum entry · transit day-pass ·
 priority Bürgeramt appointment. The reward is mostly **existing city capacity**, not cash out the door.
@@ -225,7 +225,7 @@ Every claim above is backed by code in this repository — see the [root README]
 - **Sat AM** — Bought sensors in a Karlsruhe shop; wired the first node.
 - **Sat** — 3D-designed & printed the Sprig housing; wrote the ESP-NOW mesh firmware; live readings flowing.
 - **Sat–Sun** — FAO-56 + Open-Meteo model; citizen PWA (map, scan/verify, rewards, impact); city dashboard.
-- **Sun** — Deployed `beta.betree.me` + `api.betree.me`; green CI; pitch.
+- **Sun** — Deployed `betree.me` + `api.betree.me`; green CI; pitch.
 
 **Post-hackathon roadmap:** server-side verification → calibrate the model on real history → LoRaWAN →
 Postgres/PostGIS → ML residual correction → multi-department data exports.
@@ -236,23 +236,12 @@ Postgres/PostGIS → ML residual correction → multi-department data exports.
   accuracy figure until we fit on real dry-down data.
 - **Verification is app-side today.** Anti-gaming logic exists in the flow but must move server-side to
   be tamper-proof at scale — it's the first roadmap item.
-- **Single live sensor.** The data pipeline is real end-to-end; statistical confidence needs more nodes.
+- **Two live sensors** (one standalone, one mesh). The pipeline is real end-to-end; statistical
+  confidence across the cadastre needs more nodes.
 - **Secrets hygiene.** The demo firmware embeds credentials — to be moved to gitignored config and the
   key rotated before any public release (tracked in `SUBMISSION_CLEANUP.md`).
 
 We'd rather show a jury a small, honest, *working* slice than an impressive number we can't defend.
-
----
-
-## 12. How this maps to the judging criteria
-
-| Criterion | BeTree |
-|-----------|--------|
-| **Innovation & creativity** | Sensor-verified "Proof of Care" closes the honor-system gap; a physical model turns sparse sensors into citywide coverage; one node serves five departments. |
-| **Practical impact & value** | Directly addresses a legal mandate and a €1M/yr blind spend; ~100× ROI per saved tree; tangible citizen rewards. |
-| **Technical feasibility** | Real mesh firmware, live data, deployed app + API, typed code with CI — all in this repo. |
-| **Scalability** | Coverage scales with a physics model, not hardware; free mesh connectivity; multi-department demand; clean DB migration path. |
-| **Pitch quality** | A self-built, in-the-ground prototype and a live app you can scan and use right now. |
 
 ---
 

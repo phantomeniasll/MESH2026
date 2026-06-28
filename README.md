@@ -13,7 +13,7 @@ and pays citizens to keep them alive. Built at **HackXplore 2026** in Karlsruhe 
 
 > A young street tree dies in its first 3–5 years without supplemental water.
 > Replacing one costs the city **€5,000–15,000**. A whole summer of citizen watering
-> rewards costs **under €50**. We close that gap — with real sensors, a real app, and
+> rewards costs **a few hundred euros** — a fraction of one replacement. We close that gap — with real sensors, a real app, and
 > sensor-verified proof that the watering actually happened.
 
 <p align="center">
@@ -34,10 +34,10 @@ Everything below is running in this repo, today:
 |-------|----------|
 | 🛰️ **Real hardware mesh** | ESP32 **dual-node ESP-NOW mesh** firmware ([`backend/esp32`](backend/esp32)) — low-power sensor nodes deep-sleep and relay readings to a WiFi gateway. Builds with PlatformIO. |
 | 🖨️ **Self-built prototype** | We 3D-designed the **"Sprig"** enclosure ([`3d/SprigV2.step`](3d)), printed it, and stuffed it with sensors bought Saturday morning in a Karlsruhe shop. It's in a tree right now (photo above). |
-| 📡 **Live sensor data** | **60,000+** real readings in the demo DB; device **KA-00001** is live. The app's watering verification polls *that real sensor*. |
+| 📡 **Live sensor data** | **60,000+** real readings; **two live nodes** — one standalone, one mesh (KA-00001 / KA-00002). The app's watering verification polls a *real sensor*. |
 | 🗺️ **The whole city, for real** | **126,434** actual Karlsruhe trees from the open tree cadastre rendered on the map — not mock pins. |
 | 🧠 **A real model** | FAO-56 soil-water-balance coupled to **Open-Meteo / DWD** weather, reading **root-zone depth** (3–27 cm), so a few sensors ground-truth the whole city. |
-| 📱 **Deployed app** | Mobile-first PWA at `beta.betree.me`, FastAPI at `api.betree.me`, green CI (ruff · mypy · pytest on Py 3.11–3.13). |
+| 📱 **Deployed app** | Mobile-first PWA at `betree.me`, FastAPI at `api.betree.me`, green CI (ruff · mypy · pytest on Py 3.11–3.13). |
 
 ---
 
@@ -75,7 +75,7 @@ session — cross-checked against live rainfall so you can't claim credit in a d
 the soil confirms the watering. Verified waterings earn **credits → real city perks** (transit passes,
 museum entry, seed packets, priority Bürgeramt slots).
 
-**5. Pay for itself.** One saved tree (€5k–15k) outpays a full season of rewards (<€50) by **~100×** —
+**5. Pay for itself.** One saved tree (€5k–15k) outpays a full season of rewards (~€500) by **roughly 10–30×** —
 and the same sensor answers questions for five city departments (greenspace, planning, environment,
 health, civil engineering) from one install.
 
