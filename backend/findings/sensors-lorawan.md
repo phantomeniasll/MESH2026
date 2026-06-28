@@ -31,12 +31,6 @@
 - **Battery:** LoRa + deep sleep = months on AA batteries
 - **No WiFi per tree:** Sensors talk directly to existing TTN infrastructure
 
-## Why This Matters
-
-Other teams will build WiFi sensors that only work in the venue (100m range to the router). You build a **city-scale architecture** that a real municipality deploys tomorrow.
-
-This is what the R&D jury wants to see — not a prototype that stops working when you leave SteamWork.
-
 ## Expanded Use Cases
 
 - **Foot traffic analytics** → "Kaiserstr. plane tree: 847 pedestrians/day. 12 stopped. 3 watered. Peak: 8am commuters." Urban planning data for where benches, lighting, and new trees should go.
