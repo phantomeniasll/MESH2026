@@ -45,5 +45,5 @@
 | Gamification | Arenas, streaks, achievements, friends |
 | LoRaWAN (not proprietary) | Open infrastructure, TTN community network |
 | Carbon credit integration | Verra VM0047 methodology |
-| Points → city services | Priority Bürgeramt, free day pass |
+| Points → city services | adopt a tree, free swimming pool or museum day pass |
 | Open API from day one | Not an afterthought — the architecture IS the API |
